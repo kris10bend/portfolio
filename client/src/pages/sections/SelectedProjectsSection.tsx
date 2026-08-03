@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 
 type Project = {
@@ -8,6 +9,8 @@ type Project = {
   imageAlt: string;
   imageHeight: "large" | "small";
   titleSize: "large" | "small";
+  /** Slug from projects.ts — when set the card becomes a link to /work/:slug */
+  slug?: string;
   descriptionWidth?: string;
   metadataWidth?: string;
   metadataAlign?: "left" | "right";
@@ -22,6 +25,8 @@ const featuredProject: Project = {
   imageAlt: "Element UAE china",
   imageHeight: "large",
   titleSize: "large",
+  // Slug sourced directly from projects.ts — not derived from title
+  slug: "building-bridges",
 };
 
 const firstProjectPair: Project[] = [
@@ -104,6 +109,55 @@ const finalProject: Project = {
   descriptionWidth: "max-w-[581px]",
 };
 
+const ProjectCardContent = ({
+  project,
+}: {
+  project: Project;
+}): JSX.Element => {
+  const isLarge = project.imageHeight === "large";
+
+  return (
+    <CardContent className="space-y-6 p-0">
+      <figure
+        className={`overflow-hidden rounded ${
+          isLarge ? "h-[440px] lg:h-[500px]" : "h-[360px]"
+        }`}
+      >
+        <img
+          className="h-full w-full object-cover"
+          alt={project.imageAlt}
+          src={project.image}
+        />
+      </figure>
+      <div
+        className="flex flex-col gap-3 lg:flex-row lg:items-baseline lg:justify-between lg:gap-8"
+      >
+        <div className={`min-w-0 ${project.descriptionWidth ?? ""}`}>
+          <h3
+            className={`mt-[-1px] [font-family:'Inter',Helvetica] font-normal tracking-[0] text-gray-900 leading-[normal] ${
+              project.titleSize === "large"
+                ? "text-[28px] lg:text-[32px]"
+                : "text-[26px] lg:text-[28px]"
+            }`}
+          >
+            {project.title}
+          </h3>
+          <p className="mt-2 [font-family:'Geist',Helvetica] text-sm font-normal leading-[21px] tracking-[0] text-gray-700">
+            {project.description}
+          </p>
+        </div>
+        <p
+          className={`shrink-0 [font-family:'Geist',Helvetica] text-xs font-normal leading-[normal] text-gray-900 ${
+            project.metadataWidth ?? ""
+          } ${project.metadataAlign === "right" ? "text-left lg:text-right" : ""}`}
+        >
+          {project.metadata}
+        </p>
+      </div>
+    </CardContent>
+  );
+};
+
 const ProjectCard = ({
   project,
   className = "",
@@ -111,59 +165,28 @@ const ProjectCard = ({
   project: Project;
   className?: string;
 }): JSX.Element => {
-  const isLarge = project.imageHeight === "large";
-
-  return (
+  const card = (
     <Card
       className={`w-full border-0 bg-transparent p-0 shadow-none ${className}`}
     >
-      <CardContent className="space-y-6 p-0">
-        <figure
-          className={`overflow-hidden rounded ${
-            isLarge ? "h-[440px] lg:h-[500px]" : "h-[360px]"
-          }`}
-        >
-          <img
-            className="h-full w-full object-cover"
-            alt={project.imageAlt}
-            src={project.image}
-          />
-        </figure>
-        <div
-          className={`flex flex-col gap-3 lg:flex-row lg:items-baseline lg:justify-between lg:gap-8 ${
-            project.metadataAlign === "right" ? "" : ""
-          }`}
-        >
-          <div className={`min-w-0 ${project.descriptionWidth ?? ""}`}>
-            <h3
-              className={`mt-[-1px] [font-family:'Inter',Helvetica] font-normal tracking-[0] text-gray-900 leading-[normal] ${
-                project.titleSize === "large"
-                  ? "text-[28px] lg:text-[32px]"
-                  : "text-[26px] lg:text-[28px]"
-              }`}
-            >
-              {project.title}
-            </h3>
-            <p className="mt-2 [font-family:'Geist',Helvetica] text-sm font-normal leading-[21px] tracking-[0] text-gray-700">
-              {project.description}
-            </p>
-          </div>
-          <p
-            className={`shrink-0 [font-family:'Geist',Helvetica] text-xs font-normal leading-[normal] text-gray-900 ${
-              project.metadataWidth ?? ""
-            } ${project.metadataAlign === "right" ? "text-left lg:text-right" : ""}`}
-          >
-            {project.metadata}
-          </p>
-        </div>
-      </CardContent>
+      <ProjectCardContent project={project} />
     </Card>
   );
+
+  if (project.slug) {
+    return (
+      <Link href={`/work/${project.slug}`} className="block">
+        {card}
+      </Link>
+    );
+  }
+
+  return card;
 };
 
 export const SelectedProjectsSection = (): JSX.Element => {
   return (
-    <section className="w-full bg-white px-6 py-16 sm:px-10 sm:py-24 lg:px-20 lg:py-32">
+    <section id="work" className="w-full bg-white px-6 py-16 sm:px-10 sm:py-24 lg:px-20 lg:py-32">
       <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-16 lg:gap-20">
         <header className="space-y-8 lg:space-y-20">
           <div className="flex items-baseline justify-between gap-6">
