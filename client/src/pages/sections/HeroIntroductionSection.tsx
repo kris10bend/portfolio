@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
 
 const slides = [
-  "/figmaAssets/hero.svg",
-  "/figmaAssets/hero-slide-1.png",
-  "/figmaAssets/hero-slide-2.png",
-  "/figmaAssets/hero-slide-3.png",
-  "/figmaAssets/hero-slide-4.png",
-  "/figmaAssets/hero-slide-5.png",
-  "/figmaAssets/hero-slide-6.png",
-  "/figmaAssets/hero-slide-7.png",
-  "/figmaAssets/hero-slide-8.png",
+  "/figmaAssets/hero-tall-0.png",
+  "/figmaAssets/hero-tall-1.png",
+  "/figmaAssets/hero-tall-2.png",
+  "/figmaAssets/hero-tall-3.png",
+  "/figmaAssets/hero-tall-4.png",
+  "/figmaAssets/hero-tall-5.png",
+  "/figmaAssets/hero-tall-6.png",
+  "/figmaAssets/hero-tall-7.png",
 ];
 
 const INTERVAL_MS = 4000;
