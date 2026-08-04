@@ -88,24 +88,33 @@ const finalProject: Project = {
 
 const ProjectCardContent = ({
   project,
+  showOverlay = false,
 }: {
   project: Project;
+  showOverlay?: boolean;
 }): JSX.Element => {
   const isLarge = project.imageHeight === "large";
 
   return (
     <CardContent className="space-y-6 p-0">
-      <figure
-        className={`overflow-hidden rounded ${
+      <div
+        className={`group relative overflow-hidden rounded ${
           isLarge ? "h-[440px] lg:h-[500px]" : "h-[360px]"
         }`}
       >
         <img
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
           alt={project.imageAlt}
           src={project.image}
         />
-      </figure>
+        {showOverlay && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+            <p className="max-w-[260px] text-center text-[13px] font-normal leading-[1.6] text-white [font-family:'Geist',Helvetica] tracking-[0.01em]">
+              Case study in progress, reach out for information.
+            </p>
+          </div>
+        )}
+      </div>
       <div className="flex flex-col gap-3">
         <h3
           className={`mt-[-1px] [font-family:'Inter',Helvetica] font-normal tracking-[0] text-gray-900 leading-[normal] ${
@@ -127,15 +136,17 @@ const ProjectCardContent = ({
 const ProjectCard = ({
   project,
   className = "",
+  showOverlay = false,
 }: {
   project: Project;
   className?: string;
+  showOverlay?: boolean;
 }): JSX.Element => {
   const card = (
     <Card
       className={`w-full border-0 bg-transparent p-0 shadow-none ${className}`}
     >
-      <ProjectCardContent project={project} />
+      <ProjectCardContent project={project} showOverlay={showOverlay} />
     </Card>
   );
 
@@ -166,25 +177,27 @@ export const SelectedProjectsSection = (): JSX.Element => {
         </header>
         <ProjectCard project={featuredProject} />
         <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,760fr)_minmax(0,480fr)]">
-          {firstProjectPair.map((project, index) => (
+          {firstProjectPair.map((project) => (
             <ProjectCard
               key={project.title}
               project={project}
               className=""
+              showOverlay={!project.slug}
             />
           ))}
         </div>
-        <ProjectCard project={expoProject} className="pt-10" />
+        <ProjectCard project={expoProject} className="pt-10" showOverlay={!expoProject.slug} />
         <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,480fr)_minmax(0,760fr)]">
-          {secondProjectPair.map((project, index) => (
+          {secondProjectPair.map((project) => (
             <ProjectCard
               key={project.title}
               project={project}
               className=""
+              showOverlay={!project.slug}
             />
           ))}
         </div>
-        <ProjectCard project={finalProject} className="pt-10" />
+        <ProjectCard project={finalProject} className="pt-10" showOverlay={!finalProject.slug} />
       </div>
     </section>
   );
