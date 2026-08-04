@@ -74,7 +74,7 @@ export const HeroIntroductionSection = (): JSX.Element => {
             Turning ideas into experiences people <em>actually</em> remember.
           </h1>
           <p className="[font-family:'Inter',Helvetica] max-w-[580px] text-base font-normal leading-[18px] text-[#ffffffcc] sm:text-lg sm:leading-[25px]">
-            <strong>Kristen Bend</strong> is a Creative Director and Experience Designer specializing in immersive experiences, exhibitions, brand storytelling, and strategic design.
+            I'm <strong>Kristen Bend</strong>, a Creative Director and Experience Designer specializing in immersive experiences, exhibitions, brand storytelling, and strategic design.
             <br />
             <br />
             I&apos;m endlessly curious about how people learn, connect, and make meaning. I partner with organizations to transform complex ideas into experiences that spark curiosity, invite participation, and stay with people long after they leave.
