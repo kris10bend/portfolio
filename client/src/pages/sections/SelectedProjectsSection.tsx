@@ -15,7 +15,7 @@ type Project = {
 const featuredProject: Project = {
   title: "Building Bridges for the Future",
   description:
-    "Bringing four decades of diplomacy to life through an immersive cultural experience celebrating the partnership between the UAE and China.",
+    "Bringing forty years of UAE–China partnership to life through shared stories and public participation.",
   image: "/figmaAssets/01112024-uae-china-ybc-day1-03016-3.png",
   imageAlt: "Element UAE china",
   imageHeight: "large",
@@ -28,7 +28,7 @@ const firstProjectPair: Project[] = [
   {
     title: "Journey to Net Zero",
     description:
-      "Transforming climate strategy into an experience people could explore, understand, and discuss.",
+      "Bringing the UAE's vision for a net zero future to life at COP28.",
     image: "/figmaAssets/msst0758-1.png",
     imageAlt: "Msst",
     imageHeight: "large",
@@ -37,7 +37,7 @@ const firstProjectPair: Project[] = [
   {
     title: "Designing Better Futures",
     description:
-      "Helping leadership teams navigate complex challenges through collaborative experiences designed to build alignment and momentum.",
+      "Helping leaders experience possible futures before choosing which one to pursue.",
     image: "/figmaAssets/dct-cover-img-1.png",
     imageAlt: "Dct cover img",
     imageHeight: "small",
@@ -46,9 +46,9 @@ const firstProjectPair: Project[] = [
 ];
 
 const expoProject: Project = {
-  title: "Expo 2020 Dubai",
+  title: "Expo 2020",
   description:
-    "Showcasing the UAE's spirit of innovation through immersive storytelling that invited visitors to explore the country's future vision.",
+    "Translating breakthrough ideas into an exhibition celebrating the UAE's innovators.",
   image: "/figmaAssets/img-4838-1.png",
   imageAlt: "Img",
   imageHeight: "large",
@@ -57,9 +57,9 @@ const expoProject: Project = {
 
 const secondProjectPair: Project[] = [
   {
-    title: "Rethinking Collaboration",
+    title: "Collective Intelligence",
     description:
-      "Enabling teams to move from individual thinking to collective action through a collaborative experience integrating AI, facilitation, and analog tools.",
+      "Transforming employee insights into collective action through human-AI collaboration.",
     image: "/figmaAssets/carl-1.png",
     imageAlt: "Carl",
     imageHeight: "small",
@@ -68,7 +68,7 @@ const secondProjectPair: Project[] = [
   {
     title: "Radical Imagination",
     description:
-      "Helping leaders imagine bold futures by combining collaborative facilitation with AI-powered exploration and rapid prototyping.",
+      "Designing an interactive studio to build radical imagination in the age of AI.",
     image: "/figmaAssets/20260513-dini-4508-2.png",
     imageAlt: "Element dini",
     imageHeight: "large",
@@ -77,9 +77,9 @@ const secondProjectPair: Project[] = [
 ];
 
 const finalProject: Project = {
-  title: "Vibe Camp: SYPartners Learning Lab",
+  title: "Vibe Camp",
   description:
-    "Helping teams build confidence with AI through hands-on experimentation, collaborative making, and rapid prototyping.",
+    "Helping teams build together in the era of AI collaboration.",
   image: "/figmaAssets/screenshot-2026-07-29-at-9-47-26-am-1.png",
   imageAlt: "Screenshot",
   imageHeight: "large",
