@@ -271,7 +271,12 @@ export function Refined() {
           </header>
 
           {/* Project grid */}
-          <ProjectCard project={featuredProject} />
+          <a
+            href="/__mockup/preview/portfolio-refined/BuildingBridges"
+            style={{ textDecoration: "none", color: "inherit", display: "block" }}
+          >
+            <ProjectCard project={featuredProject} />
+          </a>
 
           <div className="grid items-end gap-12 lg:grid-cols-[minmax(0,760fr)_minmax(0,480fr)]">
             {firstProjectPair.map((project, index) => (
