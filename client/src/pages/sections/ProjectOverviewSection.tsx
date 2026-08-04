@@ -61,16 +61,14 @@ export const ProjectOverviewSection = ({
           ))}
         </h1>
       </div>
-
       {/* Divider */}
       <div className="w-full border-t border-white/20" />
-
       {/* Metadata grid */}
       <div className="grid w-full grid-cols-2 gap-y-8 sm:grid-cols-4 sm:gap-y-0">
         {metaFields.map(({ label, value }) => (
           <div key={label} className="flex flex-col gap-2">
             <p
-              className="text-[11px] font-normal uppercase leading-none text-white"
+              className="text-[11px] font-normal uppercase leading-none border-t-[#ffb41f] border-r-[#ffb41f] border-b-[#ffb41f] border-l-[#ffb41f] text-[#ffb41f]"
               style={{
                 fontFamily: "'Geist', 'Inter', Helvetica, sans-serif",
                 letterSpacing: "0.08em",
