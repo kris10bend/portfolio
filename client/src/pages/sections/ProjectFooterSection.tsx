@@ -46,31 +46,8 @@ export const ProjectFooterSection = (): JSX.Element => {
           </p>
         </section>
 
-        {/* Right: contact + social */}
+        {/* Right: social */}
         <div className="flex shrink-0 flex-col items-start gap-10 sm:flex-row sm:gap-20">
-          {/* Inquiries */}
-          <section className="flex flex-col gap-4" aria-labelledby="project-footer-inquiries">
-            <h3
-              id="project-footer-inquiries"
-              className="text-[11px] font-normal uppercase leading-none text-white/40"
-              style={{
-                fontFamily: "'Geist', 'Inter', Helvetica, sans-serif",
-                letterSpacing: "0.12em",
-              }}
-            >
-              Inquiries
-            </h3>
-            {["kris10bend@gmail.com", "+1 (203) 948 5626"].map((detail) => (
-              <p
-                key={detail}
-                className="text-sm font-normal leading-none text-white/80"
-                style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
-              >
-                {detail}
-              </p>
-            ))}
-          </section>
-
           {/* Social */}
           <section className="flex flex-col gap-4" aria-labelledby="project-footer-social">
             <h3

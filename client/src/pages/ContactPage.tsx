@@ -113,26 +113,6 @@ export const ContactPage = (): JSX.Element => {
               want to continue the conversation, I'd love to hear from you.
             </p>
 
-            {/* Direct inquiries */}
-            <div className="flex flex-col gap-3">
-              <p
-                className="text-[11px] font-normal uppercase leading-none text-white/40"
-                style={{
-                  fontFamily: "'Geist', 'Inter', Helvetica, sans-serif",
-                  letterSpacing: "0.12em",
-                }}
-              >
-                Direct Inquiries
-              </p>
-              <a
-                href="mailto:kris10bend@gmail.com"
-                className="text-base font-normal leading-none text-white transition-opacity hover:opacity-70"
-                style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
-              >
-                kris10bend@gmail.com
-              </a>
-            </div>
-
             {/* Elsewhere / LinkedIn */}
             <div className="flex flex-col gap-3">
               <p
@@ -275,7 +255,7 @@ export const ContactPage = (): JSX.Element => {
                         id="contact-email"
                         name="email"
                         type="email"
-                        placeholder="e.g. kris10bend@gmail.com"
+                        placeholder="e.g. Hello@gmail.com"
                         autoComplete="email"
                         disabled={formState === "submitting"}
                         className="w-full border border-black/15 bg-white px-4 py-3 text-sm text-black outline-none transition-colors placeholder:text-black/30 focus:border-[#002fa7] disabled:opacity-50"
