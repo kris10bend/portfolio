@@ -1,0 +1,85 @@
+#36 - Refactor Homepage Hero for Full-Bleed Responsive Layout
+
+Goal
+
+The homepage hero should remain full-bleed across the entire browser
+width while keeping the content responsive and visually balanced.
+
+The recent centering fixes solved the layout issue, but the hero is now
+constrained by the site’s max-width container. The hero should instead
+use full-width background panels while the image and text scale
+independently.
+
+New Assets
+
+Replace the existing left-side hero graphics with these transparent PNG
+files:
+
+-   Home_Hero_1.png
+-   Home_Hero_2.png
+-   Home_Hero_3.png
+-   Home_Hero_4.png
+-   Home_Hero_5.png
+-   Home_Hero_6.png
+-   Home_Hero_7.png
+-   Home_Hero_8.png
+-   Home_Hero_9.png
+-   Home_Hero_10.png
+
+These PNGs contain only the arched image on a transparent background.
+The background colors should now be created entirely with CSS.
+
+Background Colors
+
+Assign the matching CSS background color behind each image.
+
+-   #FFB41F
+-   #F24333
+-   #5E0035
+-   #71D4F8
+-   #E2CFEA
+
+Desired Layout
+
+The hero should consist of two independent full-height panels.
+
+LEFT PANEL - Full-height CSS background color. - Center the transparent
+PNG horizontally and vertically. - Do NOT stretch or crop the image. -
+Use object-fit: contain. - Allow generous padding around the image. -
+The colored background should expand independently from the image.
+
+RIGHT PANEL - Keep the existing blue background. - Preserve all
+typography and spacing. - Continue using the existing responsive text
+layout.
+
+Responsive Behavior
+
+The hero itself should span the full browser width.
+
+The image should scale fluidly without distorting.
+
+Recommended image styling: - max-width: approximately 80% - max-height:
+approximately 80% - object-fit: contain
+
+The hero should use a responsive minimum height rather than a fixed
+pixel height.
+
+Suggested: - min-height: clamp(700px, 85vh, 980px)
+
+Important
+
+Do NOT place the hero inside the site’s shared max-width content
+container.
+
+Instead: - The background color panels should stretch edge-to-edge. -
+The image should float within the left panel. - The text should remain
+comfortably readable on the right. - The overall composition should
+remain visually centered at every viewport width.
+
+Preserve
+
+Do not change: - Typography - Colors (other than moving them to CSS) -
+Animations - Copy - Navigation - Overall visual design
+
+This is purely a layout refactor to make the hero fully responsive while
+preserving the current design intent.

@@ -53,11 +53,11 @@ export const HeroIntroductionSection = (): JSX.Element => {
           </p>
           <h1
             id="hero-introduction-title"
-            className="[font-family:'Inter',Helvetica] font-normal text-[32px] leading-tight sm:text-[48px] sm:leading-normal md:text-[55px] md:leading-[52.2px] lg:text-[75px] lg:leading-[1.0]"
+            className="[font-family:'Inter',Helvetica] font-normal text-[32px] leading-tight sm:text-[48px] sm:leading-normal md:text-[55px] md:leading-[52.2px] lg:text-[60px] lg:leading-[1.0]"
           >
             Turning ideas into experiences people <em>actually</em> remember.
           </h1>
-          <p className="[font-family:'Inter',Helvetica] max-w-[580px] text-base font-normal leading-[25.6px] text-[#ffffffcc] sm:text-lg sm:leading-[28.8px]">
+          <p className="[font-family:'Inter',Helvetica] max-w-[580px] text-base font-normal leading-[20px] text-[#ffffffcc] sm:text-lg sm:leading-[28.8px]">
             <strong>Kristen Bend</strong> is a Creative Director and Experience Designer specializing in immersive experiences, exhibitions, brand storytelling, and strategic design.
             <br />
             <br />
