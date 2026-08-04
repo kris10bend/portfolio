@@ -46,3 +46,5 @@ timeoutMs = 60000
 
 [deployment]
 deploymentTarget = "cloudrun"
+build = ["npm", "run", "build"]
+run = ["npm", "run", "start"]
