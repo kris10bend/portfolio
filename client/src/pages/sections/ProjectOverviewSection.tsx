@@ -56,7 +56,9 @@ export const ProjectOverviewSection = ({
             letterSpacing: "-0.01em",
           }}
         >
-          {title}
+          {title.split("\n").map((line, i, arr) => (
+            <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
+          ))}
         </h1>
       </div>
 

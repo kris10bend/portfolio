@@ -115,7 +115,7 @@ const ProjectCardContent = ({
           </div>
         )}
       </div>
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
         <h3
           className={`mt-[-1px] [font-family:'Inter',Helvetica] font-normal tracking-[0] text-gray-900 leading-[normal] ${
             project.titleSize === "large"

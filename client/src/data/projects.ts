@@ -4,7 +4,7 @@ export const projects: ProjectData[] = [
   {
     slug: "building-bridges",
     caseStudyLabel: "CASE STUDY 01 / SERIES",
-    title: "Building Bridges for the Future",
+    title: "Building Bridges\nfor the Future",
     heroImage: {
       src: "/figmaAssets/project-uae-china/hero.png",
       alt: "UAE China YBC immersive exhibition",

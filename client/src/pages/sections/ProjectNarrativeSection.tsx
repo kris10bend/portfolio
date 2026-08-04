@@ -18,7 +18,7 @@ export const ProjectNarrativeSection = ({
     <section className="w-full px-6 pb-16 pt-10 sm:px-10 sm:pb-20 sm:pt-12 lg:flex lg:gap-20 lg:px-20 lg:pb-24 lg:pt-12">
       {/* Pull-quote */}
       <blockquote
-        className="mb-8 shrink-0 font-normal leading-[1] text-[#0d0d1a] lg:mb-0 lg:w-[480px]"
+        className="mb-8 shrink-0 font-normal leading-[1.1] text-[#0d0d1a] lg:mb-0 lg:w-[480px]"
         style={{
           fontFamily: "'Inter', Helvetica, sans-serif",
           fontSize: "clamp(24px, 3.5vw, 40px)",
