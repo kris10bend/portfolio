@@ -18,8 +18,8 @@ const navigationItems: NavItem[] = [
   // correctly whether navigating from / (same-page scroll) or from any other
   // route (full navigation then scroll).
   { label: "WORK", href: "/#work" },
-  // CONTACT: mailto — plain <a>, no router involvement
-  { label: "CONTACT", href: "mailto:kris10bend@gmail.com" },
+  // CONTACT: SPA navigation — wouter handles this without a page reload
+  { label: "CONTACT", href: "/contact", useRouter: true },
 ];
 
 const navLinkClass =
