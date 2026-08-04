@@ -142,7 +142,7 @@ function ProjectCard({
             {project.title}
           </h3>
           <p
-            className="mt-2.5 text-sm font-normal leading-[1.6] text-gray-500"
+            className="mt-1 text-sm font-normal leading-[1.6] text-gray-500"
             style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
           >
             {project.description}
@@ -241,7 +241,7 @@ export function Refined() {
       </section>
 
       {/* ── Selected Works ── */}
-      <section className="w-full bg-white px-6 py-16 sm:px-10 sm:py-24 lg:px-20 lg:py-32">
+      <section className="w-full bg-white px-6 py-8 sm:px-10 sm:py-12 lg:px-20 lg:py-16">
         <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-16 lg:gap-24">
           {/* Section header */}
           <header>
@@ -261,8 +261,8 @@ export function Refined() {
             </div>
 
             <p
-              className="mt-10 text-xl font-normal leading-[1.45] text-gray-800 lg:text-2xl"
-              style={{ letterSpacing: "-0.01em" }}
+              className="mt-3 text-sm font-normal leading-[1.5] text-gray-500"
+              style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
             >
               The projects I love most begin with a question:
               <br />
@@ -278,24 +278,22 @@ export function Refined() {
             <ProjectCard project={featuredProject} />
           </a>
 
-          <div className="grid items-end gap-12 lg:grid-cols-[minmax(0,760fr)_minmax(0,480fr)]">
-            {firstProjectPair.map((project, index) => (
+          <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,760fr)_minmax(0,480fr)]">
+            {firstProjectPair.map((project) => (
               <ProjectCard
                 key={project.title}
                 project={project}
-                className={index === 1 ? "lg:pt-[100px]" : ""}
               />
             ))}
           </div>
 
           <ProjectCard project={expoProject} className="pt-6" />
 
-          <div className="grid items-end gap-12 lg:grid-cols-[minmax(0,480fr)_minmax(0,760fr)]">
-            {secondProjectPair.map((project, index) => (
+          <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,480fr)_minmax(0,760fr)]">
+            {secondProjectPair.map((project) => (
               <ProjectCard
                 key={project.title}
                 project={project}
-                className={index === 0 ? "lg:pt-[100px]" : ""}
               />
             ))}
           </div>
