@@ -78,7 +78,6 @@ const secondProjectPair: Project[] = [
     imageAlt: "Carl",
     imageHeight: "small",
     titleSize: "small",
-    metadataWidth: "max-w-[461px]",
   },
   {
     title: "Radical Imagination",
@@ -130,7 +129,11 @@ const ProjectCardContent = ({
         />
       </figure>
       <div
-        className="flex flex-col gap-3 lg:flex-row lg:items-baseline lg:justify-between lg:gap-8"
+        className={`flex flex-col gap-3 ${
+          project.titleSize === "large"
+            ? "lg:flex-row lg:items-baseline lg:justify-between lg:gap-8"
+            : ""
+        }`}
       >
         <div className={`min-w-0 ${project.descriptionWidth ?? ""}`}>
           <h3
@@ -146,13 +149,15 @@ const ProjectCardContent = ({
             {project.description}
           </p>
         </div>
-        <p
-          className={`shrink-0 [font-family:'Geist',Helvetica] text-xs font-normal leading-[normal] text-gray-900 ${
-            project.metadataWidth ?? ""
-          } ${project.metadataAlign === "right" ? "text-left lg:text-right" : ""}`}
-        >
-          {project.metadata}
-        </p>
+        {project.titleSize === "large" && (
+          <p
+            className={`shrink-0 [font-family:'Geist',Helvetica] text-xs font-normal leading-[normal] text-gray-900 ${
+              project.metadataWidth ?? ""
+            } ${project.metadataAlign === "right" ? "text-left lg:text-right" : ""}`}
+          >
+            {project.metadata}
+          </p>
+        )}
       </div>
     </CardContent>
   );
