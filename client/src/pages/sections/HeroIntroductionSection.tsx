@@ -2,16 +2,16 @@ export const HeroIntroductionSection = (): JSX.Element => {
   return (
     <section
       aria-labelledby="hero-introduction-title"
-      className="grid w-full grid-cols-1 overflow-hidden md:grid-cols-2"
+      className="grid w-full grid-cols-1 overflow-hidden md:grid-cols-2 md:h-[calc(100vh-120px)]"
     >
-      <figure className="m-0 min-h-[400px] md:min-h-[800px]">
+      <figure className="m-0 min-h-[400px] md:min-h-0 md:h-full">
         <img
           className="h-full w-full object-cover"
           alt="Hero"
           src="/figmaAssets/hero.svg"
         />
       </figure>
-      <div className="flex min-h-[400px] bg-[#002fa7] px-8 py-12 text-white sm:px-12 sm:py-16 md:min-h-[800px] md:px-20 md:py-24">
+      <div className="flex min-h-[400px] bg-[#002fa7] px-8 py-12 text-white sm:px-12 sm:py-16 md:min-h-0 md:h-full md:px-20 md:py-24">
         <div className="flex max-w-[580px] flex-col items-start gap-4">
           <p className="[font-family:'Inter',Helvetica] text-xs font-normal leading-normal">
             EXPERIENCE DESIGN &amp; CREATIVE DIRECTION
