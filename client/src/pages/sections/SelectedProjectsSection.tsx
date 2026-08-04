@@ -152,18 +152,13 @@ const ProjectCard = ({
 
 export const SelectedProjectsSection = (): JSX.Element => {
   return (
-    <section id="work" className="w-full bg-white px-6 py-16 sm:px-10 sm:py-24 lg:px-20 lg:py-32 pl-[70px] pr-[70px] pt-[70px] pb-[70px]">
+    <section id="work" className="w-full bg-white px-6 pt-8 pb-16 sm:px-10 sm:pt-10 sm:pb-24 lg:px-20 lg:pt-10 lg:pb-32">
       <div className="mx-auto flex w-full max-w-[1280px] flex-col lg:gap-20 ml-[0px] mr-[0px] gap-[30px]">
         <header className="space-y4 lg:space-y-5">
-          <div className="flex items-baseline justify-between gap-6">
-            <h2 className="mt-[-1px] [font-family:'Inter',Helvetica] text-4xl font-normal leading-[normal] tracking-[0] text-gray-900 lg:text-5xl">
-              Selected Works
-            </h2>
-            <p className="shrink-0 [font-family:'Geist',Helvetica] text-[11px] font-normal leading-[normal] text-gray-500 lg:text-[13px]">
-              01 / 07 PROJECTS
-            </p>
-          </div>
-          <p className="mt-[-1px] [font-family:'Inter',Helvetica] text-xl font-normal leading-[normal] tracking-[0] text-gray-900 lg:text-2xl">
+          <h2 className="mt-[-1px] [font-family:'Inter',Helvetica] text-4xl font-normal leading-[normal] tracking-[0] text-gray-900 lg:text-5xl">
+            Selected Works
+          </h2>
+          <p className="mt-2 [font-family:'Inter',Helvetica] text-sm font-normal leading-snug tracking-[0] text-gray-600 lg:text-base">
             The projects I love most begin with a question:
             <br />
             <em>How can we help people see this differently?</em>
