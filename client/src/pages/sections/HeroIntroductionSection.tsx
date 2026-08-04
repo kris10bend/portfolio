@@ -44,7 +44,7 @@ export const HeroIntroductionSection = (): JSX.Element => {
           />
         ))}
       </figure>
-      <div className="flex min-h-[400px] bg-[#002fa7] px-8 py-12 text-white sm:px-12 sm:py-16 md:min-h-0 md:h-full md:px-20 md:py-24">
+      <div className="flex items-center justify-center min-h-[400px] bg-[#002fa7] px-8 py-12 text-white sm:px-12 sm:py-16 md:min-h-0 md:h-full md:px-20 md:py-24">
         <div className="flex max-w-[580px] flex-col items-start gap-4">
           <p className="[font-family:'Inter',Helvetica] text-xs font-normal leading-normal">
             EXPERIENCE DESIGN &amp; CREATIVE DIRECTION
