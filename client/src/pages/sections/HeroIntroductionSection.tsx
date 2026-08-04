@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 
 const slides = [
-  "/figmaAssets/hero-tall-0.png",
-  "/figmaAssets/hero-tall-1.png",
-  "/figmaAssets/hero-tall-2.png",
-  "/figmaAssets/hero-tall-3.png",
-  "/figmaAssets/hero-tall-4.png",
-  "/figmaAssets/hero-tall-5.png",
-  "/figmaAssets/hero-tall-6.png",
-  "/figmaAssets/hero-tall-7.png",
-  "/figmaAssets/hero-tall-8.png",
-  "/figmaAssets/hero-tall-9.png",
+  { image: "/figmaAssets/home-hero-1.png", background: "#E2CFEA" },
+  { image: "/figmaAssets/home-hero-2.png", background: "#FFB41F" },
+  { image: "/figmaAssets/home-hero-3.png", background: "#F24333" },
+  { image: "/figmaAssets/home-hero-4.png", background: "#5E0035" },
+  { image: "/figmaAssets/home-hero-5.png", background: "#71D4F8" },
+  { image: "/figmaAssets/home-hero-6.png", background: "#E2CFEA" },
+  { image: "/figmaAssets/home-hero-7.png", background: "#FFB41F" },
+  { image: "/figmaAssets/home-hero-8.png", background: "#F24333" },
+  { image: "/figmaAssets/home-hero-9.png", background: "#5E0035" },
+  { image: "/figmaAssets/home-hero-10.png", background: "#71D4F8" },
 ];
 
 const INTERVAL_MS = 4000;
@@ -29,24 +29,40 @@ export const HeroIntroductionSection = (): JSX.Element => {
   return (
     <section
       aria-labelledby="hero-introduction-title"
-      className="mx-auto grid w-full max-w-[1400px] grid-cols-1 overflow-hidden md:grid-cols-2 md:h-[calc(100vh-85px)]"
+      className="grid w-full grid-cols-1 overflow-hidden md:grid-cols-2"
+      style={{ minHeight: "clamp(700px, 85vh, 980px)" }}
     >
-      <figure className="relative m-0 min-h-[400px] overflow-hidden md:min-h-0 md:h-full">
-        {slides.map((src, i) => (
+      {/* Left panel: per-slide background color with centered arch image */}
+      <figure
+        className="relative m-0 min-h-[400px] md:min-h-0"
+        style={{
+          backgroundColor: slides[current].background,
+          transition: `background-color ${TRANSITION_MS}ms ease-in-out`,
+        }}
+      >
+        {slides.map(({ image }, i) => (
           <img
-            key={src}
-            className="absolute inset-0 h-full w-full object-cover"
+            key={image}
             style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              maxWidth: "80%",
+              maxHeight: "80%",
+              objectFit: "contain",
               opacity: i === current ? 1 : 0,
               transition: `opacity ${TRANSITION_MS}ms ease-in-out`,
             }}
             alt={i === 0 ? "Hero" : ""}
-            src={src}
+            src={image}
             aria-hidden={i !== current}
           />
         ))}
       </figure>
-      <div className="flex items-center justify-center min-h-[400px] bg-[#002fa7] px-8 py-12 text-white sm:px-12 sm:py-16 md:min-h-0 md:h-full md:px-20 md:py-24">
+
+      {/* Right panel: visually unchanged */}
+      <div className="flex items-center justify-center min-h-[400px] bg-[#002fa7] px-8 py-12 text-white sm:px-12 sm:py-16 md:min-h-0 md:px-20 md:py-24">
         <div className="flex max-w-[580px] flex-col items-start gap-4">
           <p className="[font-family:'Inter',Helvetica] text-xs font-normal leading-normal text-[#ffb41f]">
             EXPERIENCE DESIGN &amp; CREATIVE DIRECTION
