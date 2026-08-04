@@ -55,15 +55,13 @@ export const HeroIntroductionSection = (): JSX.Element => {
             id="hero-introduction-title"
             className="[font-family:'Inter',Helvetica] font-normal sm:text-[48px] md:text-[55px] md:leading-[52.2px] text-[75px]"
           >
-            Designing experiences
-            <br />
-            that invite new perspectives.
+            Turning ideas into experiences people <em>actually</em> remember.
           </h1>
           <p className="[font-family:'Inter',Helvetica] max-w-[580px] text-base font-normal leading-[25.6px] text-[#ffffffcc] sm:text-lg sm:leading-[28.8px]">
-            I&apos;m endlessly curious about how people learn, connect, and make
-            meaning. I help organizations turn complex ideas into experiences
-            that invite curiosity, shift perspectives, and stay with people long
-            after they leave.
+            <strong>Kristen Bend</strong> is a Creative Director and Experience Designer specializing in immersive experiences, exhibitions, brand storytelling, and strategic design.
+            <br />
+            <br />
+            I&apos;m endlessly curious about how people learn, connect, and make meaning. I partner with organizations to transform complex ideas into experiences that spark curiosity, invite participation, and stay with people long after they leave.
           </p>
         </div>
       </div>
