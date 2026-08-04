@@ -349,7 +349,7 @@ export const ContactPage = (): JSX.Element => {
       {/* ── Full-width image section ── */}
       <section className="w-full" aria-label="Photo">
         <img
-          src="/figmaAssets/img-4838-1.png"
+          src="/figmaAssets/contact-visual-punctuation.png"
           alt=""
           role="presentation"
           className="w-full object-cover"

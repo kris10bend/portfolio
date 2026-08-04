@@ -81,7 +81,7 @@ export const ProjectFooterSection = (): JSX.Element => {
             >
               Social
             </h3>
-            {["LinkedIn", "Instagram"].map((link) => (
+            {["LinkedIn"].map((link) => (
               <p
                 key={link}
                 className="text-sm font-normal leading-none text-white/80 transition-opacity hover:text-white"
