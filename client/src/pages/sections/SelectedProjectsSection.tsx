@@ -154,7 +154,7 @@ export const SelectedProjectsSection = (): JSX.Element => {
   return (
     <section id="work" className="w-full bg-white px-6 py-16 sm:px-10 sm:py-24 lg:px-20 lg:py-32 pl-[70px] pr-[70px] pt-[70px] pb-[70px]">
       <div className="mx-auto flex w-full max-w-[1280px] flex-col lg:gap-20 ml-[0px] mr-[0px] gap-[50px]">
-        <header className="space-y-8 lg:space-y-20">
+        <header className="space-y-8 lg:space-y-10">
           <div className="flex items-baseline justify-between gap-6">
             <h2 className="mt-[-1px] [font-family:'Inter',Helvetica] text-4xl font-normal leading-[normal] tracking-[0] text-gray-900 lg:text-5xl">
               Selected Works
