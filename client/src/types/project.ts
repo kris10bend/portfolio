@@ -23,7 +23,7 @@ export type GalleryBlock =
 
 export type ProjectData = {
   slug: string;
-  /** e.g. "CASE STUDY 01 / SERIES" */
+  /** e.g. "CASE STUDY" */
   caseStudyLabel: string;
   title: string;
   heroImage: ProjectImageAsset;

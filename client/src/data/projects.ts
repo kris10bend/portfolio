@@ -3,7 +3,7 @@ import { ProjectData } from "@/types/project";
 export const projects: ProjectData[] = [
   {
     slug: "building-bridges",
-    caseStudyLabel: "CASE STUDY 01 / SERIES",
+    caseStudyLabel: "CASE STUDY",
     title: "Building Bridges\nfor the Future",
     heroImage: {
       src: "/figmaAssets/project-uae-china/hero.png",
