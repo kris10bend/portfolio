@@ -164,8 +164,8 @@ const ProjectCard = ({
 export const SelectedProjectsSection = (): JSX.Element => {
   return (
     <section id="work" className="w-full bg-white px-6 pt-8 pb-16 sm:px-10 sm:pt-10 sm:pb-24 lg:px-20 lg:pt-10 lg:pb-32">
-      <div className="mx-auto flex w-full max-w-[1280px] flex-col lg:gap-20 ml-[0px] mr-[0px] gap-[30px]">
-        <header className="space-y4 lg:space-y-5">
+      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-[30px] lg:gap-20">
+        <header className="space-y-4 lg:space-y-5">
           <h2 className="mt-[-1px] [font-family:'Inter',Helvetica] text-4xl font-normal leading-[normal] tracking-[0] text-gray-900 lg:text-5xl">
             Selected Works
           </h2>

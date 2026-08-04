@@ -29,7 +29,8 @@ export const NextProjectSection = ({
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
           {/* Text */}
-          <div className="relative flex w-full items-end justify-between px-6 pb-8 sm:px-10 lg:px-20 lg:pb-12">
+          <div className="relative w-full px-6 pb-8 sm:px-10 lg:px-20 lg:pb-12">
+          <div className="mx-auto flex w-full max-w-[1400px] items-end justify-between">
             <div className="flex flex-col gap-1">
               <p
                 className="text-[11px] font-normal uppercase tracking-widest text-white/60"
@@ -51,6 +52,7 @@ export const NextProjectSection = ({
             <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/40 text-white transition-all duration-200 group-hover:border-white group-hover:bg-white/10 lg:h-12 lg:w-12">
               <ArrowRight className="h-4 w-4 lg:h-5 lg:w-5" />
             </div>
+          </div>
           </div>
         </div>
       </Link>

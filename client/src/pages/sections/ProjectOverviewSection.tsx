@@ -1,4 +1,5 @@
 import { ProjectData } from "@/types/project";
+import { ContainerLayout } from "@/components/ContainerLayout";
 
 interface ProjectOverviewSectionProps {
   caseStudyLabel: string;
@@ -34,8 +35,9 @@ export const ProjectOverviewSection = ({
   return (
     <section
       style={{ backgroundColor: BLUE }}
-      className="flex w-full flex-col items-start gap-10 px-6 pb-14 pt-16 sm:gap-12 sm:px-10 sm:pb-16 sm:pt-20 lg:gap-12 lg:px-20 lg:pb-16 lg:pt-20"
+      className="w-full px-6 pb-14 pt-16 sm:px-10 sm:pb-16 sm:pt-20 lg:px-20 lg:pb-16 lg:pt-20"
     >
+      <ContainerLayout className="flex flex-col items-start gap-10 sm:gap-12 lg:gap-12">
       {/* Title block */}
       <div className="flex w-full flex-col gap-4">
         <p
@@ -88,6 +90,7 @@ export const ProjectOverviewSection = ({
           </div>
         ))}
       </div>
+      </ContainerLayout>
     </section>
   );
 };

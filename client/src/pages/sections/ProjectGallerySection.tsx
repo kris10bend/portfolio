@@ -1,4 +1,5 @@
 import { GalleryBlock, ProjectImageAsset } from "@/types/project";
+import { ContainerLayout } from "@/components/ContainerLayout";
 
 interface ProjectGallerySectionProps {
   blocks: GalleryBlock[];
@@ -67,7 +68,8 @@ export const ProjectGallerySection = ({
   blocks,
 }: ProjectGallerySectionProps): JSX.Element => {
   return (
-    <section className="flex w-full flex-col gap-4 px-6 pb-16 pt-10 sm:gap-6 sm:px-10 sm:pb-24 sm:pt-12 lg:gap-10 lg:px-20 lg:pb-32 lg:pt-12">
+    <section className="w-full px-6 pb-16 pt-10 sm:px-10 sm:pb-24 sm:pt-12 lg:px-20 lg:pb-32 lg:pt-12">
+      <ContainerLayout className="flex flex-col gap-4 sm:gap-6 lg:gap-10">
       {blocks.map((block, i) => {
         if (block.type === "full") {
           return <FullRow key={i} image={block.image} />;
@@ -81,6 +83,7 @@ export const ProjectGallerySection = ({
           />
         );
       })}
+      </ContainerLayout>
     </section>
   );
 };

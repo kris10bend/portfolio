@@ -29,7 +29,7 @@ export const HeroIntroductionSection = (): JSX.Element => {
   return (
     <section
       aria-labelledby="hero-introduction-title"
-      className="grid w-full grid-cols-1 overflow-hidden md:grid-cols-2 md:h-[calc(100vh-85px)]"
+      className="mx-auto grid w-full max-w-[1400px] grid-cols-1 overflow-hidden md:grid-cols-2 md:h-[calc(100vh-85px)]"
     >
       <figure className="relative m-0 min-h-[400px] overflow-hidden md:min-h-0 md:h-full">
         {slides.map((src, i) => (
@@ -53,7 +53,7 @@ export const HeroIntroductionSection = (): JSX.Element => {
           </p>
           <h1
             id="hero-introduction-title"
-            className="[font-family:'Inter',Helvetica] font-normal sm:text-[48px] md:text-[55px] md:leading-[52.2px] text-[75px]"
+            className="[font-family:'Inter',Helvetica] font-normal text-[32px] leading-tight sm:text-[48px] sm:leading-normal md:text-[55px] md:leading-[52.2px] lg:text-[75px] lg:leading-[1.0]"
           >
             Turning ideas into experiences people <em>actually</em> remember.
           </h1>

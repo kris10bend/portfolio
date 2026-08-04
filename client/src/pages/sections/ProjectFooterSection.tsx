@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { ContainerLayout } from "@/components/ContainerLayout";
 
 const BLUE = "#002fa7";
 
@@ -14,9 +15,10 @@ const BLUE = "#002fa7";
 export const ProjectFooterSection = (): JSX.Element => {
   return (
     <footer
-      className="flex w-full flex-col gap-10 px-6 pb-10 pt-20 sm:px-10 lg:px-20"
+      className="w-full px-6 pb-10 pt-20 sm:px-10 lg:px-20"
       style={{ backgroundColor: BLUE }}
     >
+      <ContainerLayout className="flex flex-col gap-10">
       {/* Divider */}
       <div className="w-full border-t border-white/15" />
 
@@ -110,6 +112,7 @@ export const ProjectFooterSection = (): JSX.Element => {
           Selected Works
         </Link>
       </div>
+      </ContainerLayout>
     </footer>
   );
 };

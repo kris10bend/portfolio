@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { ContainerLayout } from "@/components/ContainerLayout";
 
 type NavItem = {
   label: string;
@@ -23,35 +24,37 @@ const navigationItems: NavItem[] = [
 ];
 
 const navLinkClass =
-  "no-underline [font-family:'Geist',Helvetica] text-[13px] font-medium leading-[normal] text-black hover:opacity-60 transition-opacity";
+  "no-underline [font-family:'Geist',Helvetica] text-[11px] sm:text-[13px] font-medium leading-[normal] text-black hover:opacity-60 transition-opacity";
 
 export const HeaderNavigationSection = (): JSX.Element => {
   return (
-    <header className="flex w-full items-center justify-between self-stretch px-6 py-3 md:px-20 md:py-4">
-      <img
-        className="h-[53px] w-[131.18px] shrink-0 object-contain"
-        alt="Group"
-        src="/figmaAssets/group-1.png"
-      />
-      <nav aria-label="Primary navigation">
-        <ul className="flex items-baseline gap-5 md:gap-10">
-          {navigationItems.map((item) =>
-            item.useRouter ? (
-              <li key={item.label}>
-                <Link href={item.href} className={navLinkClass}>
-                  {item.label}
-                </Link>
-              </li>
-            ) : (
-              <li key={item.label}>
-                <a href={item.href} className={navLinkClass}>
-                  {item.label}
-                </a>
-              </li>
-            )
-          )}
-        </ul>
-      </nav>
+    <header className="w-full px-6 py-3 md:px-20 md:py-4">
+      <ContainerLayout className="flex items-center justify-between">
+        <img
+          className="h-[38px] w-auto shrink-0 object-contain sm:h-[53px] sm:w-[131.18px]"
+          alt="Group"
+          src="/figmaAssets/group-1.png"
+        />
+        <nav aria-label="Primary navigation">
+          <ul className="flex items-baseline gap-3 sm:gap-5 md:gap-10">
+            {navigationItems.map((item) =>
+              item.useRouter ? (
+                <li key={item.label}>
+                  <Link href={item.href} className={navLinkClass}>
+                    {item.label}
+                  </Link>
+                </li>
+              ) : (
+                <li key={item.label}>
+                  <a href={item.href} className={navLinkClass}>
+                    {item.label}
+                  </a>
+                </li>
+              )
+            )}
+          </ul>
+        </nav>
+      </ContainerLayout>
     </header>
   );
 };
