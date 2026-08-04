@@ -11,6 +11,7 @@ type Project = {
   descriptionWidth?: string;
   metadataWidth?: string;
   metadataAlign?: "left" | "right";
+  showOverlay?: boolean;
 };
 
 const featuredProject: Project = {
@@ -37,6 +38,7 @@ const firstProjectPair: Project[] = [
     descriptionWidth: "max-w-[430px]",
     metadataWidth: "max-w-[253px]",
     metadataAlign: "right",
+    showOverlay: true,
   },
   {
     title: "Designing Better Futures",
@@ -47,6 +49,7 @@ const firstProjectPair: Project[] = [
     imageAlt: "Designing Better Futures",
     imageHeight: "small",
     titleSize: "small",
+    showOverlay: true,
   },
 ];
 
@@ -59,6 +62,7 @@ const expoProject: Project = {
   imageAlt: "Expo 2020 Dubai",
   imageHeight: "large",
   titleSize: "large",
+  showOverlay: true,
 };
 
 const secondProjectPair: Project[] = [
@@ -73,6 +77,7 @@ const secondProjectPair: Project[] = [
     imageHeight: "small",
     titleSize: "small",
     metadataWidth: "max-w-[461px]",
+    showOverlay: true,
   },
   {
     title: "Radical Imagination",
@@ -87,6 +92,7 @@ const secondProjectPair: Project[] = [
     descriptionWidth: "max-w-[500px]",
     metadataWidth: "max-w-[215px]",
     metadataAlign: "right",
+    showOverlay: true,
   },
 ];
 
@@ -101,22 +107,21 @@ const finalProject: Project = {
   imageHeight: "large",
   titleSize: "large",
   descriptionWidth: "max-w-[581px]",
+  showOverlay: true,
 };
 
 function ProjectCard({
   project,
   className = "",
-  showOverlay = false,
 }: {
   project: Project;
   className?: string;
-  showOverlay?: boolean;
 }) {
   const isLarge = project.imageHeight === "large";
 
   return (
     <article className={`w-full ${className}`}>
-      {/* Image with subtle hover zoom + optional case-study overlay */}
+      {/* Image with subtle hover zoom */}
       <div
         className={`group relative overflow-hidden ${
           isLarge ? "h-[440px] lg:h-[500px]" : "h-[360px]"
@@ -128,16 +133,13 @@ function ProjectCard({
           alt={project.imageAlt}
           src={project.image}
         />
-        {showOverlay && (
-          <div
-            className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-            style={{ backgroundColor: "rgba(0, 0, 0, 0.55)" }}
-          >
+        {project.showOverlay && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
             <p
-              className="text-[11px] font-medium tracking-[0.2em] text-white uppercase"
-              style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
+              className="max-w-[260px] text-center text-[13px] font-normal leading-[1.6] text-white"
+              style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif", letterSpacing: "0.01em" }}
             >
-              Case study in progress
+              Case study in progress, reach out for information.
             </p>
           </div>
         )}
