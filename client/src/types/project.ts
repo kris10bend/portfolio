@@ -30,7 +30,7 @@ export type ProjectData = {
   metadata: {
     scope: string;
     role: string;
-    focus: string;
+    client: string;
     year: string;
   };
   /** Pull-quote shown in the narrative section */

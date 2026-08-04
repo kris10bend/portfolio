@@ -133,9 +133,23 @@ export function BuildingBridges() {
             className="max-w-[680px] text-lg font-normal leading-[1.7] text-gray-600 sm:text-xl"
             style={{ fontFamily: GEIST }}
           >
-            Bringing forty years of UAE–China partnership to life through shared
-            stories, public participation, and an exhibition that invited visitors
-            to reflect on what enduring friendship between nations truly means.
+            To celebrate forty years of partnership between the UAE and China, our
+            team was invited into the project during its final stages to help bring
+            clarity to an ambitious public exhibition already in development.
+          </p>
+          <p
+            className="max-w-[680px] text-lg font-normal leading-[1.7] text-gray-600 sm:text-xl"
+            style={{ fontFamily: GEIST }}
+          >
+            As Creative Director, I helped establish a cohesive narrative and
+            visitor experience that connected history, culture, and participation
+            into a single journey. We aligned multiple creative partners around a
+            shared narrative that transformed diplomatic history into something
+            visitors could experience, reflect on, and contribute to. Through
+            immersive storytelling, contemporary cultural perspectives, and
+            participatory installations, the exhibition invited thousands of
+            visitors to discover the values connecting two nations—and add their
+            own hopes for what the next chapter could become.
           </p>
         </div>
       </section>

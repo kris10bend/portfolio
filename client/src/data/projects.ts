@@ -12,14 +12,14 @@ export const projects: ProjectData[] = [
     metadata: {
       scope: "Cultural Experience & Exhibition",
       role: "Creative Direction & Experience Design",
-      focus: "UAE–China Cultural Partnership",
+      client: "Abu Dhabi National Projects Office",
       year: "2024",
     },
     quote:
-      "\u201cHow can we honor four decades of partnership and make diplomacy something people can feel, not just read about?\u201d",
+      "How might we transform four decades of diplomacy into something people could experience, contribute to, and carry forward?",
     description: [
-      "Building Bridges for the Future was an immersive cultural experience celebrating the 40-year partnership between the UAE and China. We brought decades of diplomatic history to life through spatial storytelling, blending archival materials, sensory environments, and interactive installations that invited visitors to explore the depth and nuance of cross-cultural exchange.",
-      "The experience was designed to move beyond traditional exhibition formats, creating moments of personal connection and discovery. Visitors moved through curated environments that revealed shared values, collaborative milestones, and future possibilities \u2014 transforming abstract geopolitics into something tangible and deeply human.",
+      "To celebrate forty years of partnership between the UAE and China, our team was invited into the project during its final stages to help bring clarity to an ambitious public exhibition already in development.",
+      "As Creative Director, I helped establish a cohesive narrative and visitor experience that connected history, culture, and participation into a single journey. We aligned multiple creative partners around a shared narrative that transformed diplomatic history into something visitors could experience, reflect on, and contribute to. Through immersive storytelling, contemporary cultural perspectives, and participatory installations, the exhibition invited thousands of visitors to discover the values connecting two nations—and add their own hopes for what the next chapter could become.",
     ],
     gallery: [
       {

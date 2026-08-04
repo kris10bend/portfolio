@@ -27,7 +27,7 @@ export const ProjectOverviewSection = ({
   const metaFields = [
     { label: "Scope", value: metadata.scope },
     { label: "Role", value: metadata.role },
-    { label: "Focus", value: metadata.focus },
+    { label: "Client", value: metadata.client },
     { label: "Year", value: metadata.year },
   ];
 

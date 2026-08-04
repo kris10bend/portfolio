@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useParams } from "wouter";
 import { HeaderNavigationSection } from "./sections/HeaderNavigationSection";
 import { ProjectHeroSection } from "./sections/ProjectHeroSection";
@@ -19,6 +20,10 @@ import { getProjectBySlug } from "@/data/projects";
 export const ProjectPage = (): JSX.Element => {
   const { slug } = useParams<{ slug: string }>();
   const project = getProjectBySlug(slug);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [slug]);
 
   if (!project) {
     return (
