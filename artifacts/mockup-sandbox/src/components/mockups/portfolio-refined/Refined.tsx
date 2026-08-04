@@ -106,26 +106,41 @@ const finalProject: Project = {
 function ProjectCard({
   project,
   className = "",
+  showOverlay = false,
 }: {
   project: Project;
   className?: string;
+  showOverlay?: boolean;
 }) {
   const isLarge = project.imageHeight === "large";
 
   return (
     <article className={`w-full ${className}`}>
-      {/* Image with subtle hover zoom */}
+      {/* Image with subtle hover zoom + optional case-study overlay */}
       <div
-        className={`overflow-hidden ${
+        className={`group relative overflow-hidden ${
           isLarge ? "h-[440px] lg:h-[500px]" : "h-[360px]"
         }`}
         style={{ borderRadius: "2px" }}
       >
         <img
-          className="h-full w-full object-cover transition-transform duration-700 ease-out hover:scale-[1.03]"
+          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
           alt={project.imageAlt}
           src={project.image}
         />
+        {showOverlay && (
+          <div
+            className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+            style={{ backgroundColor: "rgba(0, 0, 0, 0.55)" }}
+          >
+            <p
+              className="text-[11px] font-medium tracking-[0.2em] text-white uppercase"
+              style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
+            >
+              Case study in progress
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Text block */}
@@ -283,22 +298,24 @@ export function Refined() {
               <ProjectCard
                 key={project.title}
                 project={project}
+                showOverlay
               />
             ))}
           </div>
 
-          <ProjectCard project={expoProject} className="pt-6" />
+          <ProjectCard project={expoProject} className="pt-6" showOverlay />
 
           <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,480fr)_minmax(0,760fr)]">
             {secondProjectPair.map((project) => (
               <ProjectCard
                 key={project.title}
                 project={project}
+                showOverlay
               />
             ))}
           </div>
 
-          <ProjectCard project={finalProject} className="pt-6" />
+          <ProjectCard project={finalProject} className="pt-6" showOverlay />
         </div>
       </section>
 
