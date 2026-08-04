@@ -51,7 +51,7 @@ export const HeroIntroductionSection = (): JSX.Element => {
           </p>
           <h1
             id="hero-introduction-title"
-            className="[font-family:'Inter',Helvetica] text-[42px] font-normal leading-[0.95] sm:text-[48px] md:text-[55px] md:leading-[52.2px]"
+            className="[font-family:'Inter',Helvetica] font-normal sm:text-[48px] md:text-[55px] md:leading-[52.2px] text-[75px]"
           >
             Designing experiences
             <br />
