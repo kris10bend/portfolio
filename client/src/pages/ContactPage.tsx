@@ -27,6 +27,7 @@ export const ContactPage = (): JSX.Element => {
     const name = (data.get("name") as string)?.trim();
     const email = (data.get("email") as string)?.trim();
     const message = (data.get("message") as string)?.trim();
+    const website = (data.get("website") as string) ?? "";
 
     // Basic client-side check
     if (!name || !email || !message) {
@@ -42,7 +43,7 @@ export const ContactPage = (): JSX.Element => {
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, message }),
+        body: JSON.stringify({ name, email, message, website }),
       });
 
       const json = await res.json();
@@ -224,6 +225,16 @@ export const ContactPage = (): JSX.Element => {
                     onSubmit={handleSubmit}
                     noValidate
                   >
+                    {/* Honeypot — hidden from real users; bots fill it in and get silently rejected */}
+                    <input
+                      type="text"
+                      name="website"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      aria-hidden="true"
+                      style={{ position: "absolute", left: "-9999px", width: "1px", height: "1px", overflow: "hidden" }}
+                    />
+
                     {/* Name */}
                     <div className="flex flex-col gap-1.5">
                       <label

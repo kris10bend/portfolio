@@ -22,6 +22,10 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// Trust the first hop in X-Forwarded-For (Replit's proxy layer).
+// This makes req.ip reflect the real client IP rather than the proxy.
+app.set("trust proxy", 1);
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",

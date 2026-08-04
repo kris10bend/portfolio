@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import { z } from "zod";
+import rateLimit from "express-rate-limit";
 
 /** Escape special HTML characters so untrusted values are safe in HTML sinks. */
 function escapeHtml(str: string): string {
@@ -20,12 +21,34 @@ const contactSchema = z.object({
   message: z.string().min(1, "Message is required").max(5000),
 });
 
+/**
+ * Rate limiter: max 5 submissions per IP per 15 minutes.
+ * Express is configured with `trust proxy 1` so req.ip reflects the real
+ * client address (not the Replit proxy). The library default keyGenerator
+ * uses req.ip, which is safe because the proxy layer is trusted at the
+ * framework level — forged X-Forwarded-For headers from untrusted callers
+ * are stripped by the trusted-proxy logic before req.ip is derived.
+ */
+const contactRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many messages sent. Please wait a few minutes and try again." },
+});
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   // POST /api/contact — send contact form email via Resend (Replit Connector)
-  app.post("/api/contact", async (req: Request, res: Response) => {
+  app.post("/api/contact", contactRateLimiter, async (req: Request, res: Response) => {
+    // Honeypot: check before schema validation so bots get a success-looking
+    // response rather than a 400 that reveals they were detected.
+    if (typeof req.body?.website === "string" && req.body.website.length > 0) {
+      return res.status(200).json({ success: true });
+    }
+
     const parsed = contactSchema.safeParse(req.body);
     if (!parsed.success) {
       const firstError = parsed.error.errors[0]?.message ?? "Invalid submission";
