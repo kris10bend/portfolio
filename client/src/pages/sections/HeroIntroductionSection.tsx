@@ -9,6 +9,8 @@ const slides = [
   "/figmaAssets/hero-tall-5.png",
   "/figmaAssets/hero-tall-6.png",
   "/figmaAssets/hero-tall-7.png",
+  "/figmaAssets/hero-tall-8.png",
+  "/figmaAssets/hero-tall-9.png",
 ];
 
 const INTERVAL_MS = 4000;
