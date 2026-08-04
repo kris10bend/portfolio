@@ -60,6 +60,7 @@ export const HeroIntroductionSection = (): JSX.Element => {
           />
         ))}
       </figure>
+
       {/* Right panel: visually unchanged */}
       <div className="flex items-center justify-center min-h-[400px] bg-[#002fa7] px-8 py-12 text-white sm:px-12 sm:py-16 md:min-h-0 md:px-20 md:py-24">
         <div className="flex max-w-[580px] flex-col items-start gap-4">
@@ -72,7 +73,7 @@ export const HeroIntroductionSection = (): JSX.Element => {
           >
             Turning ideas into experiences people <em>actually</em> remember.
           </h1>
-          <p className="[font-family:'Inter',Helvetica] max-w-[580px] font-normal text-[#ffffffcc] sm:text-lg sm:leading-[28.8px] text-[16px]">
+          <p className="[font-family:'Inter',Helvetica] max-w-[580px] text-base font-normal leading-[18px] text-[#ffffffcc] sm:text-lg sm:leading-[25px]">
             <strong>Kristen Bend</strong> is a Creative Director and Experience Designer specializing in immersive experiences, exhibitions, brand storytelling, and strategic design.
             <br />
             <br />
