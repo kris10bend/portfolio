@@ -4,23 +4,18 @@ import { Card, CardContent } from "@/components/ui/card";
 type Project = {
   title: string;
   description: string;
-  metadata: string;
   image: string;
   imageAlt: string;
   imageHeight: "large" | "small";
   titleSize: "large" | "small";
   /** Slug from projects.ts — when set the card becomes a link to /work/:slug */
   slug?: string;
-  descriptionWidth?: string;
-  metadataWidth?: string;
-  metadataAlign?: "left" | "right";
 };
 
 const featuredProject: Project = {
   title: "Building Bridges for the Future",
   description:
     "Bringing four decades of diplomacy to life through an immersive cultural experience celebrating the partnership between the UAE and China.",
-  metadata: "CREATIVE DIRECTION · EXPERIENCE DESIGN · EXHIBITION DESIGN · 2024",
   image: "/figmaAssets/01112024-uae-china-ybc-day1-03016-3.png",
   imageAlt: "Element UAE china",
   imageHeight: "large",
@@ -34,21 +29,15 @@ const firstProjectPair: Project[] = [
     title: "Journey to Net Zero",
     description:
       "Transforming climate strategy into an experience people could explore, understand, and discuss.",
-    metadata:
-      "CREATIVE DIRECTION · EXPERIENCE DESIGN · EXHIBITION DESIGN · 2023",
     image: "/figmaAssets/msst0758-1.png",
     imageAlt: "Msst",
     imageHeight: "large",
     titleSize: "large",
-    descriptionWidth: "max-w-[430px]",
-    metadataWidth: "max-w-[253px]",
-    metadataAlign: "right",
   },
   {
     title: "Designing Better Futures",
     description:
       "Helping leadership teams navigate complex challenges through collaborative experiences designed to build alignment and momentum.",
-    metadata: "CREATIVE DIRECTION · EXPERIENCE STRATEGY · 2025",
     image: "/figmaAssets/dct-cover-img-1.png",
     imageAlt: "Dct cover img",
     imageHeight: "small",
@@ -60,7 +49,6 @@ const expoProject: Project = {
   title: "Expo 2020 Dubai",
   description:
     "Showcasing the UAE's spirit of innovation through immersive storytelling that invited visitors to explore the country's future vision.",
-  metadata: "CREATIVE DIRECTION · EXPERIENCE DESIGN · SPATIAL DESIGN · 2021",
   image: "/figmaAssets/img-4838-1.png",
   imageAlt: "Img",
   imageHeight: "large",
@@ -72,8 +60,6 @@ const secondProjectPair: Project[] = [
     title: "Rethinking Collaboration",
     description:
       "Enabling teams to move from individual thinking to collective action through a collaborative experience integrating AI, facilitation, and analog tools.",
-    metadata:
-      "CREATIVE DIRECTION · EXPERIENCE STRATEGY · FACILITATION · AI EXPERIENCE DESIGN · 2026",
     image: "/figmaAssets/carl-1.png",
     imageAlt: "Carl",
     imageHeight: "small",
@@ -83,15 +69,10 @@ const secondProjectPair: Project[] = [
     title: "Radical Imagination",
     description:
       "Helping leaders imagine bold futures by combining collaborative facilitation with AI-powered exploration and rapid prototyping.",
-    metadata:
-      "CREATIVE DIRECTION · WORKSHOP DESIGN · FACILITATION · AI EXPERIENCE DESIGN · 2026",
     image: "/figmaAssets/20260513-dini-4508-2.png",
     imageAlt: "Element dini",
     imageHeight: "large",
     titleSize: "large",
-    descriptionWidth: "max-w-[500px]",
-    metadataWidth: "max-w-[215px]",
-    metadataAlign: "right",
   },
 ];
 
@@ -99,13 +80,10 @@ const finalProject: Project = {
   title: "Vibe Camp: SYPartners Learning Lab",
   description:
     "Helping teams build confidence with AI through hands-on experimentation, collaborative making, and rapid prototyping.",
-  metadata:
-    "CREATIVE DIRECTION · LEARNING EXPERIENCE · FACILITATION · AI EXPERIENCE DESIGN · 2026",
   image: "/figmaAssets/screenshot-2026-07-29-at-9-47-26-am-1.png",
   imageAlt: "Screenshot",
   imageHeight: "large",
   titleSize: "large",
-  descriptionWidth: "max-w-[581px]",
 };
 
 const ProjectCardContent = ({
@@ -128,36 +106,19 @@ const ProjectCardContent = ({
           src={project.image}
         />
       </figure>
-      <div
-        className={`flex flex-col gap-3 ${
-          project.titleSize === "large"
-            ? "lg:flex-row lg:items-baseline lg:justify-between lg:gap-8"
-            : ""
-        }`}
-      >
-        <div className={`min-w-0 ${project.descriptionWidth ?? ""}`}>
-          <h3
-            className={`mt-[-1px] [font-family:'Inter',Helvetica] font-normal tracking-[0] text-gray-900 leading-[normal] ${
-              project.titleSize === "large"
-                ? "text-[28px] lg:text-[32px]"
-                : "text-[26px] lg:text-[28px]"
-            }`}
-          >
-            {project.title}
-          </h3>
-          <p className="mt-2 [font-family:'Geist',Helvetica] text-sm font-normal leading-[21px] tracking-[0] text-gray-700">
-            {project.description}
-          </p>
-        </div>
-        {project.titleSize === "large" && (
-          <p
-            className={`shrink-0 [font-family:'Geist',Helvetica] text-xs font-normal leading-[normal] text-gray-900 ${
-              project.metadataWidth ?? ""
-            } ${project.metadataAlign === "right" ? "text-left lg:text-right" : ""}`}
-          >
-            {project.metadata}
-          </p>
-        )}
+      <div className="flex flex-col gap-3">
+        <h3
+          className={`mt-[-1px] [font-family:'Inter',Helvetica] font-normal tracking-[0] text-gray-900 leading-[normal] ${
+            project.titleSize === "large"
+              ? "text-[28px] lg:text-[32px]"
+              : "text-[26px] lg:text-[28px]"
+          }`}
+        >
+          {project.title}
+        </h3>
+        <p className="[font-family:'Geist',Helvetica] text-sm font-normal leading-[21px] tracking-[0] text-gray-700">
+          {project.description}
+        </p>
       </div>
     </CardContent>
   );
