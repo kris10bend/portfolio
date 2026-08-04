@@ -2,7 +2,7 @@ export const HeroIntroductionSection = (): JSX.Element => {
   return (
     <section
       aria-labelledby="hero-introduction-title"
-      className="grid w-full grid-cols-1 overflow-hidden md:grid-cols-2 md:h-[calc(100vh-120px)]"
+      className="grid w-full grid-cols-1 overflow-hidden md:grid-cols-2 md:h-[calc(100vh-85px)]"
     >
       <figure className="m-0 min-h-[400px] md:min-h-0 md:h-full">
         <img

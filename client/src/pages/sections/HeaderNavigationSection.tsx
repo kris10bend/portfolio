@@ -27,7 +27,7 @@ const navLinkClass =
 
 export const HeaderNavigationSection = (): JSX.Element => {
   return (
-    <header className="flex w-full items-center justify-between self-stretch px-6 py-3 md:px-20 md:py-8">
+    <header className="flex w-full items-center justify-between self-stretch px-6 py-3 md:px-20 md:py-4">
       <img
         className="h-[53px] w-[131.18px] shrink-0 object-contain"
         alt="Group"
