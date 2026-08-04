@@ -1,0 +1,187 @@
+#35 - Fix Homepage Centering & Responsive Layout
+
+What & Why
+
+Every homepage section should be horizontally centered within the
+viewport at all screen widths (320px → 1920px).
+
+Currently, content drifts to the left on larger monitors because
+ml-[0px] and mr-[0px] in SelectedProjectsSection override mx-auto, and
+several sections rely only on viewport padding instead of a shared
+centered content container. As a result, the visual content no longer
+stays centered as the viewport expands.
+
+The entire site should follow a single responsive layout system instead
+of each section implementing its own centering behavior.
+
+Done looks like
+
+-   All homepage sections remain perfectly centered from 320px to
+    1920px.
+-   Equal whitespace exists on the left and right at every breakpoint.
+-   Resizing the browser smoothly recenters content without shifting or
+    anchoring left.
+-   No horizontal scrollbar appears.
+-   The homepage and project pages share the same centered layout
+    behavior.
+-   Existing typography, spacing, animations, colors, and interactions
+    remain unchanged.
+-   All content uses the same responsive container system instead of
+    section-specific centering rules.
+
+Out of scope
+
+-   Typography
+-   Colors
+-   Animation
+-   Mobile redesigns (Task #10)
+
+Implementation
+
+1. Create a shared responsive container
+
+Rather than giving every section its own slightly different
+implementation, create a reusable layout container (or shared utility
+class) used across the site.
+
+Target behavior:
+
+-   width: 100%
+-   max-width: 1400px
+-   margin-left: auto
+-   margin-right: auto
+-   responsive horizontal padding
+
+Every homepage section should place its content inside this shared
+container.
+
+2. Fix SelectedProjectsSection
+
+Remove:
+
+-   ml-[0px]
+-   mr-[0px]
+
+These override mx-auto.
+
+Also correct:
+
+-   space-y4
+
+to:
+
+-   space-y-4
+
+Final wrapper should resemble:
+
+-   mx-auto
+-   w-full
+-   max-w-[1280px]
+-   flex
+-   flex-col
+-   gap-[30px]
+-   lg:gap-20
+
+3. HeaderNavigationSection
+
+-   Keep the header full width.
+-   Wrap its contents in the shared centered container.
+-   Avoid positioning the navigation relative to viewport edges.
+
+4. HeroIntroductionSection
+
+Wrap the hero grid in the shared container.
+
+The hero should never exceed comfortable reading width on ultra-wide
+monitors.
+
+5. PortfolioFooterSection
+
+Wrap footer contents in the shared container while keeping the footer
+background full bleed.
+
+6. Audit every homepage section
+
+Verify the following do NOT contain:
+
+-   fixed widths
+-   arbitrary left/right margins
+-   translateX positioning
+-   absolute positioning for layout
+-   viewport-based width calculations
+-   duplicate max-width logic
+
+Every section should inherit the shared container instead.
+
+7. Audit project pages
+
+Inspect:
+
+-   ProjectHeroSection
+-   ProjectOverviewSection
+-   ProjectNarrativeSection
+-   ProjectGallerySection
+-   NextProjectSection
+-   ProjectFooterSection
+
+Apply the same shared container pattern where needed.
+
+8. Root layout audit
+
+Inspect:
+
+-   html
+-   body
+-   #root
+-   main
+-   Home.tsx
+
+Confirm:
+
+-   width: 100%
+-   min-height: 100%
+-   no positioning offsets
+-   no overflow caused by child elements
+
+Add:
+
+-   overflow-x: hidden;
+
+to html and body if necessary.
+
+9. Cross-browser verification
+
+Verify using DevTools at:
+
+-   320
+-   768
+-   1024
+-   1440
+-   1920
+
+Then verify in:
+
+-   Chrome
+-   Safari
+-   Firefox
+
+No horizontal scrolling.
+
+No left drift.
+
+No layout shifts.
+
+Relevant files
+
+-   client/src/pages/sections/SelectedProjectsSection.tsx
+-   client/src/pages/sections/HeaderNavigationSection.tsx
+-   client/src/pages/sections/HeroIntroductionSection.tsx
+-   client/src/pages/sections/PortfolioFooterSection.tsx
+-   client/src/pages/sections/ProjectHeroSection.tsx
+-   client/src/pages/sections/ProjectOverviewSection.tsx
+-   client/src/pages/sections/ProjectNarrativeSection.tsx
+-   client/src/pages/sections/ProjectGallerySection.tsx
+-   client/src/pages/sections/NextProjectSection.tsx
+-   client/src/pages/sections/ProjectFooterSection.tsx
+-   client/src/pages/Home.tsx
+-   client/src/index.css
