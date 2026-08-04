@@ -165,22 +165,22 @@ export const SelectedProjectsSection = (): JSX.Element => {
           </p>
         </header>
         <ProjectCard project={featuredProject} />
-        <div className="grid items-end gap-10 lg:grid-cols-[minmax(0,760fr)_minmax(0,480fr)]">
+        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,760fr)_minmax(0,480fr)]">
           {firstProjectPair.map((project, index) => (
             <ProjectCard
               key={project.title}
               project={project}
-              className={index === 1 ? "lg:pt-[120px]" : ""}
+              className=""
             />
           ))}
         </div>
         <ProjectCard project={expoProject} className="pt-10" />
-        <div className="grid items-end gap-10 lg:grid-cols-[minmax(0,480fr)_minmax(0,760fr)]">
+        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,480fr)_minmax(0,760fr)]">
           {secondProjectPair.map((project, index) => (
             <ProjectCard
               key={project.title}
               project={project}
-              className={index === 0 ? "lg:pt-[120px]" : ""}
+              className=""
             />
           ))}
         </div>
