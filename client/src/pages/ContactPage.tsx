@@ -65,7 +65,6 @@ export const ContactPage = (): JSX.Element => {
     <main className="flex min-h-screen w-full flex-col bg-white">
       {/* ── Global navigation ── */}
       <HeaderNavigationSection />
-
       {/* ── Two-column content section ── */}
       <section
         className="flex w-full flex-1 flex-col px-6 py-16 sm:px-10 md:py-24 lg:px-20"
@@ -78,7 +77,7 @@ export const ContactPage = (): JSX.Element => {
           <div className="flex flex-1 flex-col gap-10">
             {/* Eyebrow */}
             <p
-              className="text-[11px] font-normal uppercase leading-none text-white/60"
+              className="text-[11px] font-normal uppercase leading-none text-[#ffb41f]"
               style={{
                 fontFamily: "'Geist', 'Inter', Helvetica, sans-serif",
                 letterSpacing: "0.12em",
@@ -325,7 +324,6 @@ export const ContactPage = (): JSX.Element => {
           </div>
         </div>
       </section>
-
       {/* ── Full-width image section ── */}
       <section className="w-full" aria-label="Photo">
         <img
@@ -336,7 +334,6 @@ export const ContactPage = (): JSX.Element => {
           style={{ aspectRatio: "16 / 7", objectPosition: "center 30%" }}
         />
       </section>
-
       {/* ── Footer ── */}
       <ProjectFooterSection />
     </main>
