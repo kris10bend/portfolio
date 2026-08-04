@@ -112,6 +112,25 @@ export const ContactPage = (): JSX.Element => {
               want to continue the conversation, I'd love to hear from you.
             </p>
 
+            {/* Location */}
+            <div className="flex flex-col gap-3">
+              <p
+                className="text-[11px] font-normal uppercase leading-none text-white/40"
+                style={{
+                  fontFamily: "'Geist', 'Inter', Helvetica, sans-serif",
+                  letterSpacing: "0.12em",
+                }}
+              >
+                Location
+              </p>
+              <p
+                className="text-base font-normal leading-none text-white"
+                style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
+              >
+                Lower Hudson Valley, NY (NYC Metro Area)
+              </p>
+            </div>
+
             {/* Elsewhere / LinkedIn */}
             <div className="flex flex-col gap-3">
               <p
