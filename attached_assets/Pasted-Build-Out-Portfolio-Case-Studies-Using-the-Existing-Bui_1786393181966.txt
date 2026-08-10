@@ -1,0 +1,342 @@
+Build Out Portfolio Case Studies Using the Existing Building Bridges Template
+Goal
+Build out the six new portfolio case-study pages using the existing Building Bridges case study page as the template.
+The Building Bridges page is already live:
+/work/building-bridges
+It has already been designed and implemented as the reusable project-page system.
+DO NOT rebuild, redesign, rewrite, or modify the Building Bridges page.
+Instead:
+Inspect the existing Building Bridges page and its underlying components/data structure.
+Reuse the exact same project-page system for the six new case studies.
+Preserve the existing visual design, typography, spacing, navigation, animations, responsive behavior, and component structure.
+Populate the new pages using the approved content below.
+Connect the existing homepage project cards to their corresponding case-study pages.
+Create flexible image/media slots so I can add photography later.
+This is an implementation task, not a redesign.
+
+Existing Building Bridges Template
+Use /work/building-bridges as the source of truth for:
+Case-study page structure
+Hero/project title treatment
+Project tagline
+Provocation treatment
+Scope / Role / Client / Year metadata
+Description layout
+Image/media treatment
+Responsive behavior
+Next-project navigation
+Any existing animations or interactions
+Reusable component architecture
+Do not make changes to Building Bridges while implementing the other projects.
+If the existing Building Bridges implementation already uses reusable components or a project data model, extend that existing system rather than creating a parallel one.
+Before making changes, inspect the existing implementation and determine:
+Which components control the project-page layout.
+Where project content is stored.
+How images are currently associated with the project.
+How the homepage card links to the project.
+How next-project navigation works.
+Then extend that existing system for the six new projects.
+Do not create a second project-page system.
+
+New Case Studies
+Create these six new case-study pages:
+Journey to Net Zero
+Designing Better Futures
+Expo 2020
+Collective Intelligence
+Radical Imagination
+Vibe Camp
+Do not recreate Building Bridges.
+
+HOMEPAGE CONNECTIONS
+The existing homepage already contains project cards.
+Connect each existing card to its corresponding case-study page.
+Do not redesign or alter the existing homepage cards. Only add/fix their navigation links.
+Every project card should be clickable/tappable and lead to the correct case-study page.
+
+ROUTES
+Use the site’s existing routing convention. If the current Building Bridges route structure is /work/[slug], create:
+/work/journey-to-net-zero
+/work/designing-better-futures
+/work/expo-2020
+/work/collective-intelligence
+/work/radical-imagination
+/work/vibe-camp
+Do not change the existing Building Bridges route.
+
+CONTENT RULE — VERY IMPORTANT
+Use the content below exactly as written.
+Do not:
+rewrite
+shorten
+expand
+paraphrase
+“improve”
+add marketing language
+invent project details
+invent statistics
+invent client names
+invent project outcomes
+invent imagery
+The copy below has been intentionally edited and approved for the portfolio.
+
+PROJECT 1 — JOURNEY TO NET ZERO
+Title
+Journey to net zero
+Tagline
+Bringing the UAE’s vision for a net zero future to life at COP28.
+Provocation
+How might we connect the UAE’s deep-rooted culture of resourcefulness with its vision for a net zero future?
+Scope
+Creative Direction · Experience Design · Exhibition Design · Content Strategy
+Role
+Creative Director
+Client
+UAE Pavilion, COP28
+Year
+2023
+Description
+When our team joined the UAE’s Journey to Net Zero exhibition, the space was already in development—but its story wasn’t yet resonating with the leadership team. We quickly onboarded to the challenge of telling a national sustainability story that connected the UAE’s past, present, and future: from the resourcefulness and resilience of its ancestors to the innovators shaping its path toward net zero.
+As Creative Director, I partnered with strategy to shape the narrative and carried it through to the final experience, translating the story into every layer of the exhibition. Working alongside interior architects and additional creative partners, I designed and creative directed the displays, films, archival storytelling, physical artifacts, innovator portraits, and data visualizations that brought the narrative to life across the gallery, connecting ancestral practices with the innovations shaping the UAE’s net zero future. We extended the experience across both the public-facing Green Zone and the delegate-only Blue Zone, adapting the story, content, and visual language for two very different audiences while maintaining a cohesive journey from heritage to a net zero future.
+
+PROJECT 2 — DESIGNING BETTER FUTURES
+Title
+Designing Better Futures
+Tagline
+Helping leaders experience possible futures before choosing which one to pursue.
+Provocation
+Case study confidential, please reach out for information
+Scope
+Do not invent or add a scope field if none exists in the supplied content.
+Role
+Do not invent or add a role field if none exists in the supplied content.
+Client
+Confidential
+Year
+2025
+Description
+This is a confidential case study.
+Display the supplied confidentiality message clearly and professionally.
+Do not invent additional project content.
+If the existing Building Bridges/project-page design has a treatment for confidential work, reuse that treatment.
+
+PROJECT 3 — EXPO 2020
+Title
+Expo 2020
+Tagline
+Translating breakthrough ideas into an exhibition celebrating the UAE’s innovators.
+Provocation
+How might we bring the UAE’s most ambitious innovations to life in ways people could understand, explore, and connect to?
+Scope
+Creative Direction · Exhibition Design · Experience Design · Content Strategy
+Role
+Creative Lead
+Client
+UAE Pavilion, Expo 2020 Dubai
+Year
+2021
+Description
+As Expo 2020 approached, our team joined the UAE Pavilion late in its development to help bring greater clarity and cohesion to the visitor experience. After the pavilion opened, an opportunity to create a new exhibition emerged: an Innovation Showcase highlighting the scientists, researchers, entrepreneurs, and makers shaping the UAE’s future. I stepped into the role of Creative Lead to develop the exhibition and translate their work into stories that could connect with a broad public audience.
+Working directly with innovators across disciplines, I interviewed each participant to understand not only what they had created, but why it mattered. I then led the creative development of bilingual exhibition stories, custom illustrations, physical displays, and visual representations that made complex research and technologies approachable without losing their substance. Rather than presenting innovation as a collection of technical achievements, the showcase centered the people and ideas behind them, inviting visitors to discover work they might never otherwise encounter.
+
+PROJECT 4 — COLLECTIVE INTELLIGENCE
+Title
+Collective Intelligence
+Tagline
+Transforming employee insights into collective action through human-AI collaboration.
+Provocation
+How might we use AI to create more space for people to think, make, and solve problems together?
+Scope
+Experience Strategy · Creative Direction · Experience Design · Visual Design · AI Experience Design
+Role
+Creative Director
+Client
+Confidential
+Year
+2026
+Description
+When an organizational survey surfaced recurring challenges around collaboration, communication, meeting culture, and strategic alignment, we saw an opportunity to turn those insights into a shared experience. Rather than presenting the findings as another report, we designed a process that brought people together to reflect, collaborate, and build solutions around the challenges they were experiencing.
+As Creative Director, I led the creative development of the experience, designing its visual language, physical materials, and collaborative moments from gallery through pitch. Employees first encountered their own stories and perspectives through an immersive gallery, then worked together in facilitated sessions to identify challenges, explore possibilities, and develop ideas through an analog, highly collaborative process. A custom AI tool helped teams synthesize their thinking into a clear presentation, creating a bridge from brainstorming to consensus and pitch preparation. Each team then presented a 60-second pitch to the group, with participants voting on the ideas they believed could have the greatest impact.
+
+PROJECT 5 — RADICAL IMAGINATION
+Title
+Radical Imagination
+Tagline
+Designing an interactive studio to build radical imagination in the age of AI.
+Provocation
+How might we help leaders challenge the assumptions that shape how work gets done—and imagine what could come next?
+Scope
+Experience Strategy · Creative Direction · Experience Design · Visual Design
+Role
+Creative Director
+Client
+SYPartners
+Year
+2026
+Description
+As AI rapidly reshapes how organizations work, we designed Radical Imagination Studio to help leaders practice a fundamentally different way of thinking—challenging inherited assumptions and imagining entirely new possibilities. The experience became part of the broader conversation around AI and leadership, hosted for our partners internally, as an intimate gathering for select clients, and as a public-facing event during New York’s AI Week.
+Participants moved through a carefully sequenced studio experience—exploring an exhibition of emerging AI possibilities, completing an AI-powered leadership diagnostic, contributing to live visualizations of collective perspectives, and working in teams to reimagine how AI could reshape a fictional client challenge. Each activity shifted participants from observing change to actively experimenting with it, creating a space where leaders could experience Radical Imagination rather than simply learn about it.
+
+PROJECT 6 — VIBE CAMP
+Title
+Vibe Camp
+Tagline
+Helping teams build together in the era of AI collaboration.
+Provocation
+How might we give teams the confidence and space to discover a new way of creating together with AI?
+Scope
+Experience Strategy · Creative Direction · Experience Design · Visual Design · AI Design
+Role
+Creative Director
+Client
+SYPartners
+Year
+2026
+Description
+As AI tools rapidly become part of creative work, we designed Vibe Camp to help teams move beyond individual experimentation and discover how they could create together in entirely new ways. Inspired by the spirit of summer camp, we transformed a day of technical training into an immersive environment designed to make experimentation feel playful, approachable, and collaborative. The environment itself was designed to lower the stakes, creating permission to experiment before participants ever touched the technology.
+The day moved from guided learning to independent exploration and then collaborative creation. Participants learned the fundamentals of vibe coding in Replit by building their own birdwatching applications before working in teams on a design challenge focused on creating deeper human connection at a large client event. Using shared FigJam workspaces and Replit’s collaborative workflows, teams designed, built, and presented working prototypes together—experiencing firsthand how AI could become part of a new creative process rather than simply another tool to learn.
+
+IMAGE / MEDIA PLACEHOLDERS
+I will add the photography myself after the pages are built.
+Reuse the existing Building Bridges image/media component and create the same type of flexible media slots for each new project.
+For now:
+Do not use stock imagery.
+Do not generate images.
+Do not borrow images from Building Bridges.
+Do not invent project imagery.
+Preserve the intended image dimensions/aspect ratios.
+Make image slots easy to replace with actual project images later.
+If Building Bridges already has an established method for adding images to a project, use that exact method.
+Do not create a new gallery style unless the existing project-page system requires it.
+
+CASE STUDY PAGE STRUCTURE
+Follow the existing Building Bridges structure exactly.
+At minimum, each page should contain:
+Project title
+Tagline
+Provocation
+Scope
+Role
+Client
+Year
+Description
+Image/media area
+Next Project navigation
+Do not add sections such as:
+The Opportunity
+The Approach
+The Experience
+Reflection
+The portfolio has intentionally been condensed to this format so the visual work can carry more of the case study.
+
+NEXT PROJECT NAVIGATION
+Reuse the existing Building Bridges next-project component and behavior.
+Use this sequence:
+Building Bridges → Journey to Net Zero → Designing Better Futures → Expo 2020 → Collective Intelligence → Radical Imagination → Vibe Camp → Building Bridges
+Do not modify Building Bridges itself.
+
+RESPONSIVE BEHAVIOR
+Use the existing Building Bridges responsive behavior.
+Verify the new pages at:
+320px
+768px
+1024px
+1440px
+1920px
+Check:
+no horizontal scrolling
+no content clipping
+provocation remains readable
+metadata remains legible
+image areas maintain appropriate aspect ratios
+galleries/media reflow correctly
+navigation remains usable
+spacing remains consistent with Building Bridges
+Do not create a separate mobile design.
+
+ACCESSIBILITY
+Reuse the existing accessibility implementation.
+Ensure:
+semantic headings
+logical heading hierarchy
+keyboard-accessible links
+visible focus states
+appropriate contrast
+reduced-motion support
+When I add actual project images, I will add meaningful alt text. Do not invent descriptive alt text for placeholder images.
+
+SEO
+Create appropriate page titles and meta descriptions for the six new pages using ONLY the supplied project content.
+Do not invent claims.
+For confidential projects:
+Do not expose confidential client information.
+Do not include hidden or visible metadata that reveals the client.
+Use the existing site’s SEO implementation if one already exists.
+
+IMPLEMENTATION REQUIREMENTS
+Extend the existing Building Bridges architecture.
+Prefer the existing:
+Project page component
+Layout
+Typography
+Project metadata
+Provocation component
+Image/media component
+Navigation
+Footer
+Next-project component
+Do not create duplicate versions of these components.
+If the existing site uses a structured project data file, add the six new projects there.
+The project data should contain the appropriate fields for:
+slug
+title
+tagline
+provocation
+scope
+role
+client
+year
+description
+media/gallery configuration
+next project
+Do not hardcode project content into multiple components.
+
+DO NOT CHANGE EXISTING SITE DESIGN
+Do not modify:
+Building Bridges
+homepage visual design
+homepage layout
+hero
+typography
+colors
+navigation design
+footer
+existing animations
+existing spacing system
+except where necessary to add project links.
+The existing Building Bridges page is the visual and structural source of truth.
+
+FINAL CHECK
+Before considering the task complete, verify:
+Building Bridges is unchanged.
+All six new projects have functioning routes.
+All six existing homepage project cards link correctly.
+All supplied copy is populated exactly.
+Metadata is populated exactly.
+Confidential content remains confidential.
+Image placeholders are ready for my photography.
+Next-project navigation works through the full sequence.
+The new pages use the same reusable project-page system as Building Bridges.
+No duplicate project-page architecture has been created.
+The site remains responsive.
+No unrelated parts of the website have been redesigned.
+At the end, tell me:
+which files/components were modified
+which routes were added
+where the project data lives
+where I should add the project images
+whether Building Bridges was left unchanged
+any assumptions or issues that require my input
+Do not make additional design changes after completing this implementation.
+
+
