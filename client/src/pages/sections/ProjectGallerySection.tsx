@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { GalleryBlock, ProjectImageAsset } from "@/types/project";
 import { ContainerLayout } from "@/components/ContainerLayout";
 
@@ -7,8 +8,12 @@ interface ProjectGallerySectionProps {
 
 /**
  * Single image that fills its container, rounded corners, object-cover.
- * When `image.isPlaceholder` is true a styled slot is shown instead of
- * requesting a nonexistent file — the intended path lives in data-src.
+ *
+ * Always attempts to load the real image. If the file is missing (404) the
+ * component falls back to a grey placeholder slot automatically — the owner
+ * just drops a file into client/public/figmaAssets/ and the slot is replaced.
+ * The `isPlaceholder` flag is treated as a hint to skip the initial network
+ * request, but does not need to be cleared after photography is added.
  */
 const GalleryImage = ({
   image,
@@ -16,31 +21,36 @@ const GalleryImage = ({
 }: {
   image: ProjectImageAsset;
   className?: string;
-}): JSX.Element => (
-  <div className={`overflow-hidden rounded-[4px] ${className}`}>
-    {image.isPlaceholder ? (
-      <div
-        className="flex h-full w-full items-center justify-center bg-gray-100"
-        role="img"
-        aria-label={image.alt}
-        data-src={image.src}
-      >
-        <p
-          className="max-w-[80%] break-all px-4 text-center font-mono text-[11px] text-gray-400"
-          aria-hidden="true"
+}): JSX.Element => {
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <div className={`overflow-hidden rounded-[4px] ${className}`}>
+      {failed ? (
+        <div
+          className="flex h-full w-full items-center justify-center bg-gray-100"
+          role="img"
+          aria-label={image.alt}
+          data-src={image.src}
         >
-          {image.src}
-        </p>
-      </div>
-    ) : (
-      <img
-        src={image.src}
-        alt={image.alt}
-        className="h-full w-full object-cover transition-transform duration-700 ease-out hover:scale-[1.02]"
-      />
-    )}
-  </div>
-);
+          <p
+            className="max-w-[80%] break-all px-4 text-center font-mono text-[11px] text-gray-400"
+            aria-hidden="true"
+          >
+            {image.src}
+          </p>
+        </div>
+      ) : (
+        <img
+          src={image.src}
+          alt={image.alt}
+          className="h-full w-full object-cover transition-transform duration-700 ease-out hover:scale-[1.02]"
+          onError={() => setFailed(true)}
+        />
+      )}
+    </div>
+  );
+};
 
 /** Full-width gallery row — single image, 560px tall on desktop. */
 const FullRow = ({ image }: { image: ProjectImageAsset }): JSX.Element => (

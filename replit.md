@@ -35,6 +35,10 @@ npm run build # production build
 npm start     # serve production build
 ```
 
+## Adding photography
+
+All placeholder image paths, block types, and recommended pixel dimensions are documented in **[IMAGE_REFERENCE.md](./IMAGE_REFERENCE.md)** at the project root. Drop the correctly-named files into `client/public/figmaAssets/project-<slug>/` and the site picks them up automatically — no code changes needed.
+
 ## User preferences
 
 - **Frontend-first:** This is a frontend React + Vite portfolio based on Figma designs.

@@ -1,10 +1,41 @@
+import { useState } from "react";
 import { Link } from "wouter";
 import { ArrowRight } from "lucide-react";
-import { ProjectData } from "@/types/project";
+import { ProjectData, ProjectImageAsset } from "@/types/project";
 
 interface NextProjectSectionProps {
   nextProject: NonNullable<ProjectData["nextProject"]>;
 }
+
+/**
+ * Background image for the next-project strip.
+ * Always attempts to load the real file; falls back to a grey slot if the
+ * file is missing — the owner just drops a photo into
+ * client/public/figmaAssets/ and it appears automatically.
+ */
+const NextProjectImage = ({
+  image,
+}: {
+  image: ProjectImageAsset;
+}): JSX.Element => {
+  const [failed, setFailed] = useState(false);
+
+  return failed ? (
+    <div
+      className="absolute inset-0 h-full w-full bg-gray-200"
+      role="img"
+      aria-label={image.alt}
+      data-src={image.src}
+    />
+  ) : (
+    <img
+      src={image.src}
+      alt={image.alt}
+      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+      onError={() => setFailed(true)}
+    />
+  );
+};
 
 /**
  * "Next Project" navigation strip.
@@ -19,21 +50,8 @@ export const NextProjectSection = ({
       {/* wouter's Link renders the <a> — no inner anchor needed */}
       <Link href={`/work/${nextProject.slug}`}>
         <div className="group relative flex h-[220px] w-full cursor-pointer items-end overflow-hidden sm:h-[280px] lg:h-[320px]">
-          {/* Background image — or placeholder slot if image is not yet available */}
-          {nextProject.image.isPlaceholder ? (
-            <div
-              className="absolute inset-0 h-full w-full bg-gray-200"
-              role="img"
-              aria-label={nextProject.image.alt}
-              data-src={nextProject.image.src}
-            />
-          ) : (
-            <img
-              src={nextProject.image.src}
-              alt={nextProject.image.alt}
-              className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
-            />
-          )}
+          {/* Background image — falls back to a grey slot if the file is missing */}
+          <NextProjectImage image={nextProject.image} />
           {/* Dark overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
