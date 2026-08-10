@@ -30,11 +30,13 @@ export const HeaderNavigationSection = (): JSX.Element => {
   return (
     <header className="w-full px-6 py-3 md:px-20 md:py-4">
       <ContainerLayout className="flex items-center justify-between">
-        <img
-          className="h-[38px] w-auto shrink-0 object-contain sm:h-[53px] sm:w-[131.18px]"
-          alt="Group"
-          src="/figmaAssets/group-1.png"
-        />
+        <Link href="/" aria-label="Go to homepage" className="cursor-pointer no-underline">
+          <img
+            className="h-[38px] w-auto shrink-0 object-contain sm:h-[53px] sm:w-[131.18px]"
+            alt="Group"
+            src="/figmaAssets/group-1.png"
+          />
+        </Link>
         <nav aria-label="Primary navigation">
           <ul className="flex items-baseline gap-3 sm:gap-5 md:gap-10">
             {navigationItems.map((item) =>
