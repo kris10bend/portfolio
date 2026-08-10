@@ -1,6 +1,13 @@
 export type ProjectImageAsset = {
   src: string;
   alt: string;
+  /**
+   * When true the image file does not yet exist.
+   * Rendering components show a styled placeholder div instead of
+   * requesting the (absent) URL — the intended path is stored in
+   * data-src so the owner knows where to drop the real photograph.
+   */
+  isPlaceholder?: boolean;
 };
 
 /**
@@ -28,8 +35,8 @@ export type ProjectData = {
   title: string;
   heroImage: ProjectImageAsset;
   metadata: {
-    scope: string;
-    role: string;
+    scope?: string;
+    role?: string;
     client: string;
     year: string;
   };
@@ -38,6 +45,11 @@ export type ProjectData = {
   /** Body paragraphs beneath the quote */
   description: string[];
   gallery: GalleryBlock[];
+  /**
+   * Brief summary used as the HTML meta description for the page.
+   * Use only copy derived from the project's approved content.
+   */
+  metaDescription?: string;
   /** Optional — renders the Next Project strip above the footer */
   nextProject?: {
     slug: string;

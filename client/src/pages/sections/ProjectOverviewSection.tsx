@@ -26,8 +26,8 @@ export const ProjectOverviewSection = ({
   metadata,
 }: ProjectOverviewSectionProps): JSX.Element => {
   const metaFields = [
-    { label: "Scope", value: metadata.scope },
-    { label: "Role", value: metadata.role },
+    ...(metadata.scope ? [{ label: "Scope", value: metadata.scope }] : []),
+    ...(metadata.role ? [{ label: "Role", value: metadata.role }] : []),
     { label: "Client", value: metadata.client },
     { label: "Year", value: metadata.year },
   ];

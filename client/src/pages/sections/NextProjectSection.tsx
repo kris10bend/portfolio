@@ -19,12 +19,21 @@ export const NextProjectSection = ({
       {/* wouter's Link renders the <a> — no inner anchor needed */}
       <Link href={`/work/${nextProject.slug}`}>
         <div className="group relative flex h-[220px] w-full cursor-pointer items-end overflow-hidden sm:h-[280px] lg:h-[320px]">
-          {/* Background image */}
-          <img
-            src={nextProject.image.src}
-            alt={nextProject.image.alt}
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
-          />
+          {/* Background image — or placeholder slot if image is not yet available */}
+          {nextProject.image.isPlaceholder ? (
+            <div
+              className="absolute inset-0 h-full w-full bg-gray-200"
+              role="img"
+              aria-label={nextProject.image.alt}
+              data-src={nextProject.image.src}
+            />
+          ) : (
+            <img
+              src={nextProject.image.src}
+              alt={nextProject.image.alt}
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+            />
+          )}
           {/* Dark overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 

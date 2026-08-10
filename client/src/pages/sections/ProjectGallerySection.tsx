@@ -5,7 +5,11 @@ interface ProjectGallerySectionProps {
   blocks: GalleryBlock[];
 }
 
-/** Single image that fills its container, rounded corners, object-cover. */
+/**
+ * Single image that fills its container, rounded corners, object-cover.
+ * When `image.isPlaceholder` is true a styled slot is shown instead of
+ * requesting a nonexistent file — the intended path lives in data-src.
+ */
 const GalleryImage = ({
   image,
   className = "",
@@ -14,11 +18,27 @@ const GalleryImage = ({
   className?: string;
 }): JSX.Element => (
   <div className={`overflow-hidden rounded-[4px] ${className}`}>
-    <img
-      src={image.src}
-      alt={image.alt}
-      className="h-full w-full object-cover transition-transform duration-700 ease-out hover:scale-[1.02]"
-    />
+    {image.isPlaceholder ? (
+      <div
+        className="flex h-full w-full items-center justify-center bg-gray-100"
+        role="img"
+        aria-label={image.alt}
+        data-src={image.src}
+      >
+        <p
+          className="max-w-[80%] break-all px-4 text-center font-mono text-[11px] text-gray-400"
+          aria-hidden="true"
+        >
+          {image.src}
+        </p>
+      </div>
+    ) : (
+      <img
+        src={image.src}
+        alt={image.alt}
+        className="h-full w-full object-cover transition-transform duration-700 ease-out hover:scale-[1.02]"
+      />
+    )}
   </div>
 );
 

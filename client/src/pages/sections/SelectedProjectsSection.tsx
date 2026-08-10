@@ -33,6 +33,7 @@ const firstProjectPair: Project[] = [
     imageAlt: "Msst",
     imageHeight: "large",
     titleSize: "large",
+    slug: "journey-to-net-zero",
   },
   {
     title: "Designing Better Futures",
@@ -42,6 +43,7 @@ const firstProjectPair: Project[] = [
     imageAlt: "Dct cover img",
     imageHeight: "small",
     titleSize: "small",
+    slug: "designing-better-futures",
   },
 ];
 
@@ -53,6 +55,7 @@ const expoProject: Project = {
   imageAlt: "Img",
   imageHeight: "large",
   titleSize: "large",
+  slug: "expo-2020",
 };
 
 const secondProjectPair: Project[] = [
@@ -64,6 +67,7 @@ const secondProjectPair: Project[] = [
     imageAlt: "Carl",
     imageHeight: "small",
     titleSize: "small",
+    slug: "collective-intelligence",
   },
   {
     title: "Radical Imagination",
@@ -73,6 +77,7 @@ const secondProjectPair: Project[] = [
     imageAlt: "Element dini",
     imageHeight: "large",
     titleSize: "large",
+    slug: "radical-imagination",
   },
 ];
 
@@ -84,6 +89,7 @@ const finalProject: Project = {
   imageAlt: "Screenshot",
   imageHeight: "large",
   titleSize: "large",
+  slug: "vibe-camp",
 };
 
 const ProjectCardContent = ({

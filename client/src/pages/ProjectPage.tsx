@@ -23,7 +23,20 @@ export const ProjectPage = (): JSX.Element => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [slug]);
+    if (project) {
+      const titleLine = project.title.split("\n")[0];
+      document.title = `${titleLine} — Case Study`;
+
+      // Upsert the meta description tag
+      let metaDesc = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+      if (!metaDesc) {
+        metaDesc = document.createElement("meta");
+        metaDesc.name = "description";
+        document.head.appendChild(metaDesc);
+      }
+      metaDesc.content = project.metaDescription ?? "";
+    }
+  }, [slug, project]);
 
   if (!project) {
     return (
