@@ -9,6 +9,14 @@ export interface IStorage {
 
   // CMS Projects
   getCmsProjects(): Promise<CmsProject[]>;
+  /** Returns published, non-archived projects with showOnHomepage=true, ordered for the homepage grid. */
+  getPublishedHomepageProjects(): Promise<CmsProject[]>;
+  /** Returns a published, non-archived project by slug (for the public /work/:slug page). */
+  getPublishedCmsProjectBySlug(slug: string): Promise<CmsProject | undefined>;
+  /** Returns ANY project by slug, regardless of status/archived — used to prevent static fallback from resurrecting CMS-managed records. */
+  getCmsProjectBySlugAny(slug: string): Promise<CmsProject | undefined>;
+  /** Returns the set of all slugs present in the DB (any status, incl. archived) — used to filter static fallbacks. */
+  getAllCmsProjectSlugs(): Promise<Set<string>>;
   getCmsProjectById(id: string): Promise<CmsProject | undefined>;
   createCmsProject(project: Partial<InsertCmsProject>): Promise<CmsProject>;
   updateCmsProject(id: string, updates: Partial<InsertCmsProject>): Promise<CmsProject | undefined>;
@@ -64,6 +72,37 @@ export class DatabaseStorage implements IStorage {
       .from(cmsProjects)
       .where(isNull(cmsProjects.archivedAt))
       .orderBy(asc(cmsProjects.homepageOrder), asc(cmsProjects.createdAt));
+  }
+
+  async getPublishedHomepageProjects(): Promise<CmsProject[]> {
+    return db
+      .select()
+      .from(cmsProjects)
+      .where(
+        sql`status = 'published' AND archived_at IS NULL AND show_on_homepage = true`
+      )
+      .orderBy(asc(cmsProjects.homepageOrder), asc(cmsProjects.createdAt));
+  }
+
+  async getPublishedCmsProjectBySlug(slug: string): Promise<CmsProject | undefined> {
+    const [project] = await db
+      .select()
+      .from(cmsProjects)
+      .where(sql`slug = ${slug} AND status = 'published' AND archived_at IS NULL`);
+    return project;
+  }
+
+  async getCmsProjectBySlugAny(slug: string): Promise<CmsProject | undefined> {
+    const [project] = await db
+      .select()
+      .from(cmsProjects)
+      .where(eq(cmsProjects.slug, slug));
+    return project;
+  }
+
+  async getAllCmsProjectSlugs(): Promise<Set<string>> {
+    const rows = await db.select({ slug: cmsProjects.slug }).from(cmsProjects);
+    return new Set(rows.map((r) => r.slug));
   }
 
   async getCmsProjectById(id: string): Promise<CmsProject | undefined> {

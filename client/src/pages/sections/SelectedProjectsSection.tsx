@@ -1,105 +1,62 @@
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 
-type Project = {
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface ProjectCard {
+  slug: string;
   title: string;
-  description: string;
-  image: string;
-  imageAlt: string;
-  imageHeight: "large" | "small";
-  titleSize: "large" | "small";
-  /** Slug from projects.ts — when set the card becomes a link to /work/:slug */
-  slug?: string;
-};
+  /** Short description / excerpt shown under the project title */
+  excerpt: string;
+  heroImageSrc: string;
+  heroImageAlt: string;
+}
 
-const featuredProject: Project = {
-  title: "Building Bridges for the Future",
-  description:
-    "Bringing forty years of UAE–China partnership to life through shared stories and public participation.",
-  image: "/figmaAssets/01112024-uae-china-ybc-day1-03016-3.png",
-  imageAlt: "Element UAE china",
-  imageHeight: "large",
-  titleSize: "large",
-  // Slug sourced directly from projects.ts — not derived from title
-  slug: "building-bridges",
-};
+type ImageHeight = "large" | "small";
+type TitleSize = "large" | "small";
 
-const firstProjectPair: Project[] = [
-  {
-    title: "Journey to Net Zero",
-    description:
-      "Bringing the UAE's vision for a net zero future to life at COP28.",
-    image: "/figmaAssets/msst0758-1.png",
-    imageAlt: "Msst",
-    imageHeight: "large",
-    titleSize: "large",
-    slug: "journey-to-net-zero",
-  },
-  {
-    title: "Designing Better Futures",
-    description:
-      "Helping leaders experience possible futures before choosing which one to pursue.",
-    image: "/figmaAssets/dct-cover-img-1.png",
-    imageAlt: "Dct cover img",
+/**
+ * Returns image-height and title-size for a project at a given 0-based index
+ * in the homepage grid.
+ *
+ * Layout slots:
+ *   0         → featured (full width, large)
+ *   1         → first pair left  column (760fr → large)
+ *   2         → first pair right column (480fr → small)
+ *   3         → solo card (large)
+ *   4         → second pair left  column (480fr → small)
+ *   5         → second pair right column (760fr → large)
+ *   6+        → final/extra solo cards (large)
+ */
+function slotSizes(index: number): { imageHeight: ImageHeight; titleSize: TitleSize } {
+  const small: { imageHeight: ImageHeight; titleSize: TitleSize } = {
     imageHeight: "small",
     titleSize: "small",
-    slug: "designing-better-futures",
-  },
-];
-
-const expoProject: Project = {
-  title: "Expo 2020",
-  description:
-    "Translating breakthrough ideas into an exhibition celebrating the UAE's innovators.",
-  image: "/figmaAssets/img-4838-1.png",
-  imageAlt: "Img",
-  imageHeight: "large",
-  titleSize: "large",
-  slug: "expo-2020",
-};
-
-const secondProjectPair: Project[] = [
-  {
-    title: "Collective Intelligence",
-    description:
-      "Transforming employee insights into collective action through human-AI collaboration.",
-    image: "/figmaAssets/carl-1.png",
-    imageAlt: "Carl",
-    imageHeight: "small",
-    titleSize: "small",
-    slug: "collective-intelligence",
-  },
-  {
-    title: "Radical Imagination",
-    description:
-      "Designing an interactive studio to build radical imagination in the age of AI.",
-    image: "/figmaAssets/20260513-dini-4508-2.png",
-    imageAlt: "Element dini",
+  };
+  const large: { imageHeight: ImageHeight; titleSize: TitleSize } = {
     imageHeight: "large",
     titleSize: "large",
-    slug: "radical-imagination",
-  },
-];
+  };
+  if (index === 2) return small; // first pair right column (480fr)
+  if (index === 4) return small; // second pair left column (480fr)
+  return large;
+}
 
-const finalProject: Project = {
-  title: "Vibe Camp",
-  description:
-    "Helping teams build together in the era of AI collaboration.",
-  image: "/figmaAssets/screenshot-2026-07-29-at-9-47-26-am-1.png",
-  imageAlt: "Screenshot",
-  imageHeight: "large",
-  titleSize: "large",
-  slug: "vibe-camp",
-};
+// ─── Card components ──────────────────────────────────────────────────────────
 
 const ProjectCardContent = ({
-  project,
+  card,
+  imageHeight,
+  titleSize,
   showOverlay = false,
 }: {
-  project: Project;
+  card: ProjectCard;
+  imageHeight: ImageHeight;
+  titleSize: TitleSize;
   showOverlay?: boolean;
 }): JSX.Element => {
-  const isLarge = project.imageHeight === "large";
+  const isLarge = imageHeight === "large";
 
   return (
     <CardContent className="space-y-6 p-0">
@@ -110,8 +67,8 @@ const ProjectCardContent = ({
       >
         <img
           className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
-          alt={project.imageAlt}
-          src={project.image}
+          alt={card.heroImageAlt}
+          src={card.heroImageSrc}
         />
         {showOverlay && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
@@ -124,15 +81,15 @@ const ProjectCardContent = ({
       <div className="flex flex-col gap-1">
         <h3
           className={`mt-[-1px] [font-family:'Inter',Helvetica] font-normal tracking-[0] text-gray-900 leading-[normal] ${
-            project.titleSize === "large"
+            titleSize === "large"
               ? "text-[28px] lg:text-[32px]"
               : "text-[26px] lg:text-[28px]"
           }`}
         >
-          {project.title}
+          {card.title}
         </h3>
         <p className="[font-family:'Geist',Helvetica] text-sm font-normal leading-[21px] tracking-[0] text-gray-700">
-          {project.description}
+          {card.excerpt}
         </p>
       </div>
     </CardContent>
@@ -140,34 +97,57 @@ const ProjectCardContent = ({
 };
 
 const ProjectCard = ({
-  project,
+  card,
+  index,
   className = "",
   showOverlay = false,
 }: {
-  project: Project;
+  card: ProjectCard;
+  index: number;
   className?: string;
   showOverlay?: boolean;
 }): JSX.Element => {
-  const card = (
-    <Card
-      className={`w-full border-0 bg-transparent p-0 shadow-none ${className}`}
-    >
-      <ProjectCardContent project={project} showOverlay={showOverlay} />
+  const { imageHeight, titleSize } = slotSizes(index);
+
+  const inner = (
+    <Card className={`w-full border-0 bg-transparent p-0 shadow-none ${className}`}>
+      <ProjectCardContent
+        card={card}
+        imageHeight={imageHeight}
+        titleSize={titleSize}
+        showOverlay={showOverlay}
+      />
     </Card>
   );
 
-  if (project.slug) {
-    return (
-      <Link href={`/work/${project.slug}`} className="block">
-        {card}
-      </Link>
-    );
-  }
-
-  return card;
+  return (
+    <Link href={`/work/${card.slug}`} className="block">
+      {inner}
+    </Link>
+  );
 };
 
+// ─── Section ──────────────────────────────────────────────────────────────────
+
 export const SelectedProjectsSection = (): JSX.Element => {
+  const { data: projects = [] } = useQuery<ProjectCard[]>({
+    queryKey: ["/api/projects"],
+    queryFn: async () => {
+      const res = await fetch("/api/projects");
+      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      return res.json() as Promise<ProjectCard[]>;
+    },
+    staleTime: 30_000,
+  });
+
+  // Derive the seven layout slots from the ordered project list.
+  // Slots beyond the project list are omitted rather than rendered empty.
+  const featured = projects[0];
+  const firstPair = projects.slice(1, 3);
+  const solo = projects[3];
+  const secondPair = projects.slice(4, 6);
+  const finalSolo = projects[6];
+
   return (
     <section id="work" className="w-full bg-white px-6 pt-8 pb-16 sm:px-10 sm:pt-10 sm:pb-24 lg:px-20 lg:pt-10 lg:pb-32">
       <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-[30px] lg:gap-20">
@@ -181,29 +161,28 @@ export const SelectedProjectsSection = (): JSX.Element => {
             <em>How can we help people see this differently?</em>
           </p>
         </header>
-        <ProjectCard project={featuredProject} />
-        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,760fr)_minmax(0,480fr)]">
-          {firstProjectPair.map((project) => (
-            <ProjectCard
-              key={project.title}
-              project={project}
-              className=""
-              showOverlay={!project.slug}
-            />
-          ))}
-        </div>
-        <ProjectCard project={expoProject} className="pt-10" showOverlay={!expoProject.slug} />
-        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,480fr)_minmax(0,760fr)]">
-          {secondProjectPair.map((project) => (
-            <ProjectCard
-              key={project.title}
-              project={project}
-              className=""
-              showOverlay={!project.slug}
-            />
-          ))}
-        </div>
-        <ProjectCard project={finalProject} className="pt-10" showOverlay={!finalProject.slug} />
+
+        {featured && <ProjectCard card={featured} index={0} />}
+
+        {firstPair.length > 0 && (
+          <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,760fr)_minmax(0,480fr)]">
+            {firstPair.map((card, i) => (
+              <ProjectCard key={card.slug} card={card} index={1 + i} />
+            ))}
+          </div>
+        )}
+
+        {solo && <ProjectCard card={solo} index={3} className="pt-10" />}
+
+        {secondPair.length > 0 && (
+          <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,480fr)_minmax(0,760fr)]">
+            {secondPair.map((card, i) => (
+              <ProjectCard key={card.slug} card={card} index={4 + i} />
+            ))}
+          </div>
+        )}
+
+        {finalSolo && <ProjectCard card={finalSolo} index={6} className="pt-10" />}
       </div>
     </section>
   );

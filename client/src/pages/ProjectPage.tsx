@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useParams } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { HeaderNavigationSection } from "./sections/HeaderNavigationSection";
 import { ProjectHeroSection } from "./sections/ProjectHeroSection";
 import { ProjectOverviewSection } from "./sections/ProjectOverviewSection";
@@ -7,19 +8,35 @@ import { ProjectNarrativeSection } from "./sections/ProjectNarrativeSection";
 import { ProjectGallerySection } from "./sections/ProjectGallerySection";
 import { NextProjectSection } from "./sections/NextProjectSection";
 import { ProjectFooterSection } from "./sections/ProjectFooterSection";
-import { getProjectBySlug } from "@/data/projects";
+import type { ProjectData } from "@/types/project";
 
 /**
  * Reusable project case-study page template.
  *
- * Reads the `slug` param from the URL (/work/:slug), looks up the matching
- * project in the data layer, and renders every section.  All layout and
- * styling decisions live in the individual section components; new case studies
- * are added purely by appending entries to `src/data/projects.ts`.
+ * Reads the `slug` param from the URL (/work/:slug), fetches project data
+ * from the public API (/api/projects/:slug), and renders every section.
+ *
+ * The API falls back to the static projects.ts data for any slug not yet
+ * migrated to the CMS database, so all existing case studies remain accessible
+ * during gradual migration.
+ *
+ * Previously this component called `getProjectBySlug` from the static file
+ * directly. That function is now deprecated in favour of the API.
  */
 export const ProjectPage = (): JSX.Element => {
   const { slug } = useParams<{ slug: string }>();
-  const project = getProjectBySlug(slug);
+
+  const { data: project, isLoading } = useQuery<ProjectData | null>({
+    queryKey: ["/api/projects", slug],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${encodeURIComponent(slug ?? "")}`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+      return res.json() as Promise<ProjectData>;
+    },
+    enabled: !!slug,
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -37,6 +54,16 @@ export const ProjectPage = (): JSX.Element => {
       metaDesc.content = project.metaDescription ?? "";
     }
   }, [slug, project]);
+
+  if (isLoading) {
+    return (
+      <main className="flex min-h-screen w-full flex-col bg-white">
+        <HeaderNavigationSection />
+        {/* Blank loading state — intentionally minimal to avoid layout shift */}
+        <div className="flex-1" />
+      </main>
+    );
+  }
 
   if (!project) {
     return (

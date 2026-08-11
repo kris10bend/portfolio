@@ -17,6 +17,9 @@ export type ProjectImageAsset = {
  * "split" → two images side by side.
  *           wide: "left"  → left column is ~59%, right ~38%  (760 / 480 of 1280px)
  *           wide: "right" → left column is ~38%, right ~59%
+ * "text"  → one or more narrative paragraphs inserted inline between image rows.
+ *           Authored through the CMS text block; rendered as body copy in the
+ *           gallery section so it stays in position relative to surrounding images.
  */
 export type GalleryBlock =
   | { type: "full"; image: ProjectImageAsset }
@@ -26,7 +29,8 @@ export type GalleryBlock =
       right: ProjectImageAsset;
       /** Which column carries the wider image */
       wide: "left" | "right";
-    };
+    }
+  | { type: "text"; paragraphs: string[] };
 
 export type ProjectData = {
   slug: string;

@@ -91,7 +91,32 @@ const SplitRow = ({
 };
 
 /**
+ * Inline text rows — narrative paragraphs that an editor inserted between
+ * image rows through the CMS text block. Styled to match the body copy in
+ * ProjectNarrativeSection so prose sits comfortably alongside photography.
+ */
+const TextRow = ({ paragraphs }: { paragraphs: string[] }): JSX.Element => (
+  <div className="flex flex-col gap-5 lg:max-w-[760px]">
+    {paragraphs
+      .filter((p) => p.trim().length > 0)
+      .map((paragraph, i) => (
+        <p
+          key={i}
+          className="font-normal leading-[1.65] text-[#0d0d1a]"
+          style={{
+            fontFamily: "'Geist', 'Inter', Helvetica, sans-serif",
+            fontSize: "16px",
+          }}
+        >
+          {paragraph}
+        </p>
+      ))}
+  </div>
+);
+
+/**
  * Renders the full gallery section from a typed array of `GalleryBlock`.
+ * Supports three block types: full-image, split-image, and inline text.
  * Matches the Figma `project-gallery` frame: px-80, pt-48, pb-120, gap-40 between rows.
  */
 export const ProjectGallerySection = ({
@@ -103,6 +128,9 @@ export const ProjectGallerySection = ({
       {blocks.map((block, i) => {
         if (block.type === "full") {
           return <FullRow key={i} image={block.image} />;
+        }
+        if (block.type === "text") {
+          return <TextRow key={i} paragraphs={block.paragraphs} />;
         }
         return (
           <SplitRow

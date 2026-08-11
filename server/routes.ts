@@ -12,6 +12,8 @@ import fs from "fs";
 import { promises as fsp } from "fs";
 import { randomUUID } from "crypto";
 import { fileTypeFromBuffer } from "file-type";
+import { projects as staticProjects } from "../client/src/data/projects";
+import type { GalleryBlock, ProjectImageAsset } from "../client/src/types/project";
 
 // ─── Multer upload config ──────────────────────────────────────────────────
 
@@ -151,6 +153,247 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Unexpected error sending email:", err);
       return res.status(500).json({ error: "An unexpected error occurred. Please try again." });
+    }
+  });
+
+  // ─── Public project API ───────────────────────────────────────────────────
+
+  /**
+   * Converts a CMS content block's payload into a GalleryBlock suitable for
+   * the existing ProjectGallerySection component.
+   */
+  function blockToGalleryBlock(
+    type: string,
+    payload: unknown
+  ): GalleryBlock | null {
+    const p = payload as Record<string, unknown>;
+    if (type === "full-image") {
+      return {
+        type: "full",
+        image: { src: String(p.src ?? ""), alt: String(p.alt ?? "") },
+      };
+    }
+    if (type === "split-image") {
+      const l = (p.left ?? {}) as Record<string, unknown>;
+      const r = (p.right ?? {}) as Record<string, unknown>;
+      return {
+        type: "split",
+        left: { src: String(l.src ?? ""), alt: String(l.alt ?? "") },
+        right: { src: String(r.src ?? ""), alt: String(r.alt ?? "") },
+        wide: p.wide === "right" ? "right" : "left",
+      };
+    }
+    if (type === "text") {
+      const paragraphs = (p.paragraphs as string[] | undefined) ?? [];
+      // Only include the block when there is at least one non-empty paragraph
+      return paragraphs.some((para) => para.trim().length > 0)
+        ? { type: "text", paragraphs }
+        : null;
+    }
+    return null; // unknown block type — skip silently
+  }
+
+  /**
+   * GET /api/projects
+   * Returns projects for the homepage grid, interleaved by position.
+   *
+   * Ordering model (gradual migration):
+   * - CMS projects are placed at the 1-based slot indicated by `homepageOrder`.
+   * - Static fallback projects (whose slugs have no DB record at all) fill the
+   *   remaining empty slots in their natural order.
+   *
+   * Example with Building Bridges at homepageOrder=2:
+   *   Slot 1 → Journey to Net Zero (static)
+   *   Slot 2 → Building Bridges   (DB, homepageOrder:2)
+   *   Slot 3 → Designing Better Futures (static)  … etc.
+   *
+   * Static projects whose slug exists in the DB in any state (draft/archived)
+   * are excluded — the CMS is the authoritative source once a slug is registered.
+   */
+  app.get("/api/projects", async (_req: Request, res: Response) => {
+    try {
+      const [dbProjects, allDbSlugs] = await Promise.all([
+        storage.getPublishedHomepageProjects(),
+        storage.getAllCmsProjectSlugs(),
+      ]);
+
+      type ProjectCard = {
+        slug: string;
+        title: string;
+        excerpt: string;
+        heroImageSrc: string;
+        heroImageAlt: string;
+      };
+
+      // Build homepage card entries from DB records, recording their target slot
+      const dbCards: Array<{ order: number; card: ProjectCard }> = dbProjects
+        .filter((p) => p.homepageOrder !== null && p.homepageOrder !== undefined)
+        .map((p) => ({
+          order: p.homepageOrder as number,
+          card: {
+            slug: p.slug,
+            title: p.title.replace(/\n/g, " "),
+            excerpt: p.metaDescription ?? ((p.description as string[] | null)?.[0] ?? ""),
+            heroImageSrc: p.heroImageUrl ?? "",
+            heroImageAlt: p.heroImageAlt ?? "",
+          },
+        }));
+      // DB projects without a homepageOrder are appended at the end
+      const dbCardsNoOrder: ProjectCard[] = dbProjects
+        .filter((p) => p.homepageOrder === null || p.homepageOrder === undefined)
+        .map((p) => ({
+          slug: p.slug,
+          title: p.title.replace(/\n/g, " "),
+          excerpt: p.metaDescription ?? ((p.description as string[] | null)?.[0] ?? ""),
+          heroImageSrc: p.heroImageUrl ?? "",
+          heroImageAlt: p.heroImageAlt ?? "",
+        }));
+
+      // Static cards whose slugs have NO DB record at all
+      const staticCards: ProjectCard[] = staticProjects
+        .filter((sp) => !allDbSlugs.has(sp.slug))
+        .map((sp) => ({
+          slug: sp.slug,
+          title: sp.title.replace(/\n/g, " "),
+          excerpt: sp.metaDescription ?? sp.description[0] ?? "",
+          heroImageSrc: sp.heroImage.src,
+          heroImageAlt: sp.heroImage.alt,
+        }));
+
+      // ── Positional interleave ─────────────────────────────────────────────
+      // Reserve slots for DB-ordered projects; fill gaps with static projects.
+      const maxSlot = Math.max(
+        0,
+        ...dbCards.map((d) => d.order),
+        dbCards.length + staticCards.length + dbCardsNoOrder.length
+      );
+      // Build a sparse slot map (1-indexed → card)
+      const slots: (ProjectCard | null)[] = new Array(maxSlot + 1).fill(null);
+      for (const { order, card } of dbCards) {
+        // If two DB projects claim the same slot, append the duplicate at the end
+        if (order >= 1 && order < slots.length && slots[order] === null) {
+          slots[order] = card;
+        } else {
+          dbCardsNoOrder.push(card);
+        }
+      }
+
+      // Walk slots 1..maxSlot; fill nulls with static cards in order
+      const result: ProjectCard[] = [];
+      let staticIdx = 0;
+      for (let i = 1; i < slots.length; i++) {
+        if (slots[i] !== null) {
+          result.push(slots[i] as ProjectCard);
+        } else if (staticIdx < staticCards.length) {
+          result.push(staticCards[staticIdx++]);
+        }
+      }
+      // Append any remaining static cards and unordered DB cards
+      while (staticIdx < staticCards.length) result.push(staticCards[staticIdx++]);
+      result.push(...dbCardsNoOrder);
+
+      return res.json(result);
+    } catch (err) {
+      console.error("GET /api/projects error:", err);
+      return res.status(500).json({ error: "Failed to fetch projects" });
+    }
+  });
+
+  /**
+   * GET /api/projects/:slug
+   * Returns full ProjectData for a single published project.
+   *
+   * Fallback logic:
+   * - If any DB record exists for this slug (draft, archived, or published),
+   *   the CMS is the authoritative source. Only published+non-archived records
+   *   are served; otherwise 404.
+   * - If NO DB record exists for this slug, fall back to the static projects.ts
+   *   data so unmigrated case studies remain accessible.
+   */
+  app.get("/api/projects/:slug", async (req: Request, res: Response) => {
+    // String() cast: Express types req.params values as string | string[],
+    // but in practice route params are always strings.
+    const slug = String(req.params.slug);
+
+    try {
+      // Check whether this slug is managed in the CMS at all (any status).
+      const anyCmsRecord = await storage.getCmsProjectBySlugAny(slug);
+
+      if (!anyCmsRecord) {
+        // ── Static fallback: slug not yet in the CMS ──────────────────────
+        const staticProject = staticProjects.find((p) => p.slug === slug);
+        if (!staticProject) {
+          return res.status(404).json({ error: "Project not found" });
+        }
+        // Static data already matches ProjectData shape — serve directly.
+        return res.json(staticProject);
+      }
+
+      // Slug is CMS-managed; only serve if published and not archived.
+      const dbProject = await storage.getPublishedCmsProjectBySlug(slug);
+      if (!dbProject) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      // ── DB record → ProjectData ───────────────────────────────────────────
+      const blocks = await storage.getContentBlocksByProjectId(dbProject.id);
+
+      const gallery: GalleryBlock[] = blocks
+        .map((b) => blockToGalleryBlock(b.type, b.payload))
+        .filter((g): g is GalleryBlock => g !== null);
+
+      // Resolve nextProject title from DB (published only) or static fallback
+      let nextProject: { slug: string; title: string; image: ProjectImageAsset } | undefined;
+      if (dbProject.nextProjectSlug) {
+        const nextSlug = dbProject.nextProjectSlug;
+        const nextDbProject = await storage.getPublishedCmsProjectBySlug(nextSlug);
+        const nextTitle =
+          nextDbProject?.title ??
+          staticProjects.find((p) => p.slug === nextSlug)?.title ??
+          nextSlug;
+        nextProject = {
+          slug: nextSlug,
+          title: nextTitle,
+          image: {
+            src: dbProject.nextProjectImageUrl ?? "",
+            alt: nextTitle,
+            isPlaceholder: !dbProject.nextProjectImageUrl,
+          },
+        };
+      }
+
+      const metadata = (dbProject.metadata ?? {}) as {
+        client?: string;
+        year?: string;
+        scope?: string;
+        role?: string;
+      };
+
+      return res.json({
+        slug: dbProject.slug,
+        caseStudyLabel: dbProject.caseStudyLabel ?? "CASE STUDY",
+        title: dbProject.title,
+        heroImage: {
+          src: dbProject.heroImageUrl ?? "",
+          alt: dbProject.heroImageAlt ?? "",
+        },
+        metadata: {
+          client: metadata.client ?? "",
+          year: metadata.year ?? "",
+          ...(metadata.scope ? { scope: metadata.scope } : {}),
+          ...(metadata.role ? { role: metadata.role } : {}),
+        },
+        quote: dbProject.quote ?? "",
+        description: (dbProject.description as string[] | null) ?? [],
+        gallery,
+        ...(dbProject.metaDescription
+          ? { metaDescription: dbProject.metaDescription }
+          : {}),
+        ...(nextProject ? { nextProject } : {}),
+      });
+    } catch (err) {
+      console.error(`GET /api/projects/${slug} error:`, err);
+      return res.status(500).json({ error: "Failed to fetch project" });
     }
   });
 
