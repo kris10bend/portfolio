@@ -1,0 +1,1 @@
+- [CMS image storage model](cms-image-storage-model.md) — projects store image URLs directly in columns; isMediaReferenced must check all three URL columns plus block payloads.

@@ -316,6 +316,111 @@ export async function registerRoutes(
     }
   });
 
+  // ─── Admin project full editor endpoints ───────────────────────────────────
+
+  // GET /api/admin/projects/:id/full — return project + ordered content blocks
+  app.get("/api/admin/projects/:id/full", requireAdmin, async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    try {
+      const project = await storage.getCmsProjectById(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      const blocks = await storage.getContentBlocksByProjectId(id);
+      return res.json({ project, blocks });
+    } catch (err) {
+      console.error("GET /api/admin/projects/:id/full error:", err);
+      return res.status(500).json({ error: "Failed to fetch project" });
+    }
+  });
+
+  // Zod schema for a single content block as sent from the editor
+  const contentBlockSchema = z.object({
+    type: z.enum(["text", "full-image", "split-image"]),
+    payload: z.record(z.unknown()),
+  });
+
+  const fullProjectSaveSchema = z.object({
+    title: z.string().max(500).optional(),
+    slug: z.string().max(500).optional(),
+    caseStudyLabel: z.string().max(500).nullable().optional(),
+    heroImageId: z.string().nullable().optional(),
+    heroImageUrl: z.string().max(2000).nullable().optional(),
+    heroImageAlt: z.string().max(500).nullable().optional(),
+    metadata: z.object({
+      client: z.string().max(500),
+      year: z.string().max(100),
+      scope: z.string().max(500).optional(),
+      role: z.string().max(500).optional(),
+    }).optional(),
+    description: z.array(z.string().max(5000)).optional(),
+    quote: z.string().max(5000).nullable().optional(),
+    metaDescription: z.string().max(500).nullable().optional(),
+    showOnHomepage: z.boolean().optional(),
+    nextProjectSlug: z.string().max(500).nullable().optional(),
+    nextProjectImageUrl: z.string().max(2000).nullable().optional(),
+    /**
+     * Always required for full-replacement endpoints. The editor sends the complete
+     * block list every save. Pass [] to intentionally clear all blocks.
+     * Omitting this field returns 400 so a partial PUT can never silently erase blocks.
+     */
+    blocks: z.array(contentBlockSchema),
+  });
+
+  /**
+   * Helper: coerce the validated payload into project-field updates + a block list,
+   * then atomically save both in one transaction.
+   */
+  async function saveProjectFull(
+    id: string,
+    data: z.infer<typeof fullProjectSaveSchema>,
+    overrides?: Record<string, unknown>
+  ) {
+    const { blocks, ...rest } = data;
+    const projectFields = { ...rest, ...overrides } as any;
+    // blocks is always present (required by fullProjectSaveSchema) — pass as-is.
+    const blockList = blocks.map((b, i) => ({
+      type: b.type,
+      position: i,
+      payload: b.payload,
+    }));
+    return storage.updateProjectWithBlocks(id, projectFields, blockList);
+  }
+
+  // PUT /api/admin/projects/:id/full — save all project fields + replace block list atomically
+  app.put("/api/admin/projects/:id/full", requireAdmin, async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const parsed = fullProjectSaveSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid payload" });
+    }
+    try {
+      const existing = await storage.getCmsProjectById(id);
+      if (!existing) return res.status(404).json({ error: "Project not found" });
+      const result = await saveProjectFull(id, parsed.data);
+      return res.json(result);
+    } catch (err) {
+      console.error("PUT /api/admin/projects/:id/full error:", err);
+      return res.status(500).json({ error: "Failed to save project" });
+    }
+  });
+
+  // POST /api/admin/projects/:id/publish — save + set status to published atomically
+  app.post("/api/admin/projects/:id/publish", requireAdmin, async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const parsed = fullProjectSaveSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid payload" });
+    }
+    try {
+      const existing = await storage.getCmsProjectById(id);
+      if (!existing) return res.status(404).json({ error: "Project not found" });
+      const result = await saveProjectFull(id, parsed.data, { status: "published" });
+      return res.json(result);
+    } catch (err) {
+      console.error("POST /api/admin/projects/:id/publish error:", err);
+      return res.status(500).json({ error: "Failed to publish project" });
+    }
+  });
+
   // ─── Admin media endpoints ────────────────────────────────────────────────
 
   // POST /api/admin/media/upload — accept a multipart image upload

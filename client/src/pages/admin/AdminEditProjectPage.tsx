@@ -1,7 +1,561 @@
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useParams, useLocation } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminGuard } from "./AdminGuard";
 import { AdminLayout } from "./AdminLayout";
-import { useLocation, useParams } from "wouter";
+import { ImagePicker } from "./ImagePicker";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { Toaster } from "@/components/ui/toaster";
+import {
+  GripVertical,
+  Plus,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+} from "lucide-react";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type BlockType = "text" | "full-image" | "split-image";
+
+interface ImageSlot {
+  src: string;
+  alt: string;
+  caption: string;
+  captionVisible: boolean;
+}
+
+interface TextBlockPayload {
+  paragraphs: string[];
+}
+
+interface FullImagePayload extends ImageSlot {}
+
+interface SplitImagePayload {
+  left: ImageSlot;
+  right: ImageSlot;
+  wide: "left" | "right";
+}
+
+type BlockPayload = TextBlockPayload | FullImagePayload | SplitImagePayload;
+
+interface EditorBlock {
+  /** Stable client-side ID for React keys and DnD */
+  _key: string;
+  type: BlockType;
+  payload: BlockPayload;
+}
+
+interface ProjectMeta {
+  client: string;
+  year: string;
+  scope: string;
+  role: string;
+}
+
+interface EditorState {
+  title: string;
+  slug: string;
+  caseStudyLabel: string;
+  heroImageUrl: string;
+  heroImageId: string;
+  heroImageAlt: string;
+  metadata: ProjectMeta;
+  description: string[];
+  quote: string;
+  metaDescription: string;
+  showOnHomepage: boolean;
+  nextProjectSlug: string;
+  nextProjectImageUrl: string;
+  blocks: EditorBlock[];
+}
+
+function emptySlot(): ImageSlot {
+  return { src: "", alt: "", caption: "", captionVisible: false };
+}
+
+function newBlock(type: BlockType): EditorBlock {
+  const _key = crypto.randomUUID();
+  if (type === "text") return { _key, type, payload: { paragraphs: [""] } };
+  if (type === "full-image") return { _key, type, payload: emptySlot() };
+  return {
+    _key,
+    type: "split-image",
+    payload: { left: emptySlot(), right: emptySlot(), wide: "left" },
+  };
+}
+
+function blockLabel(type: BlockType) {
+  if (type === "text") return "Text";
+  if (type === "full-image") return "Full image";
+  return "Split image pair";
+}
+
+function blockBadgeColor(type: BlockType) {
+  if (type === "text") return "secondary";
+  if (type === "full-image") return "outline";
+  return "outline";
+}
+
+// Coerce server data into EditorState
+function serverToEditor(project: any, blocks: any[]): EditorState {
+  const meta = (project.metadata as any) ?? {};
+  return {
+    title: project.title ?? "",
+    slug: project.slug ?? "",
+    caseStudyLabel: project.caseStudyLabel ?? "",
+    heroImageUrl: project.heroImageUrl ?? "",
+    heroImageId: project.heroImageId ?? "",
+    heroImageAlt: project.heroImageAlt ?? "",
+    metadata: {
+      client: meta.client ?? "",
+      year: meta.year ?? "",
+      scope: meta.scope ?? "",
+      role: meta.role ?? "",
+    },
+    description: Array.isArray(project.description) ? project.description : [""],
+    quote: project.quote ?? "",
+    metaDescription: project.metaDescription ?? "",
+    showOnHomepage: project.showOnHomepage ?? false,
+    nextProjectSlug: project.nextProjectSlug ?? "",
+    nextProjectImageUrl: project.nextProjectImageUrl ?? "",
+    blocks: blocks.map((b: any) => ({
+      _key: crypto.randomUUID(),
+      type: b.type as BlockType,
+      payload: (b.payload ?? {}) as BlockPayload,
+    })),
+  };
+}
+
+function editorToPayload(state: EditorState, status?: "draft" | "published") {
+  return {
+    title: state.title,
+    slug: state.slug,
+    caseStudyLabel: state.caseStudyLabel || null,
+    heroImageId: state.heroImageId || null,
+    heroImageUrl: state.heroImageUrl || null,
+    heroImageAlt: state.heroImageAlt || null,
+    metadata: {
+      client: state.metadata.client,
+      year: state.metadata.year,
+      scope: state.metadata.scope || undefined,
+      role: state.metadata.role || undefined,
+    },
+    description: state.description,
+    quote: state.quote || null,
+    metaDescription: state.metaDescription || null,
+    showOnHomepage: state.showOnHomepage,
+    nextProjectSlug: state.nextProjectSlug || null,
+    nextProjectImageUrl: state.nextProjectImageUrl || null,
+    ...(status ? { status } : {}),
+    blocks: state.blocks.map((b, i) => ({
+      type: b.type,
+      payload: b.payload,
+    })),
+  };
+}
+
+// ─── Image slot editor ────────────────────────────────────────────────────────
+
+function ImageSlotEditor({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: ImageSlot;
+  onChange: (v: ImageSlot) => void;
+}) {
+  return (
+    <div className="space-y-2 border rounded-lg p-3 bg-gray-50">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
+      <ImagePicker
+        value={value.src || null}
+        onChange={(url) => onChange({ ...value, src: url })}
+      />
+      <div>
+        <Label className="text-xs">Alt text</Label>
+        <Input
+          value={value.alt}
+          onChange={(e) => onChange({ ...value, alt: e.target.value })}
+          placeholder="Describe the image for screen readers"
+          className="mt-1"
+        />
+      </div>
+      <div>
+        <Label className="text-xs">Caption</Label>
+        <Input
+          value={value.caption}
+          onChange={(e) => onChange({ ...value, caption: e.target.value })}
+          placeholder="Optional caption text"
+          className="mt-1"
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <Switch
+          id={`cap-vis-${label}`}
+          checked={value.captionVisible}
+          onCheckedChange={(checked) => onChange({ ...value, captionVisible: checked })}
+        />
+        <Label htmlFor={`cap-vis-${label}`} className="text-xs cursor-pointer">
+          Show caption on page
+        </Label>
+      </div>
+    </div>
+  );
+}
+
+// ─── Block editors ────────────────────────────────────────────────────────────
+
+function TextBlockEditor({
+  payload,
+  onChange,
+}: {
+  payload: TextBlockPayload;
+  onChange: (p: TextBlockPayload) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      {payload.paragraphs.map((para, i) => (
+        <div key={i} className="flex gap-2">
+          <Textarea
+            value={para}
+            rows={3}
+            onChange={(e) => {
+              const next = [...payload.paragraphs];
+              next[i] = e.target.value;
+              onChange({ paragraphs: next });
+            }}
+            placeholder={`Paragraph ${i + 1}`}
+            className="flex-1 resize-none"
+          />
+          <div className="flex flex-col gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => {
+                const next = payload.paragraphs.filter((_, idx) => idx !== i);
+                onChange({ paragraphs: next.length ? next : [""] });
+              }}
+              title="Remove paragraph"
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => onChange({ paragraphs: [...payload.paragraphs, ""] })}
+      >
+        <Plus className="w-3 h-3 mr-1" /> Add paragraph
+      </Button>
+    </div>
+  );
+}
+
+function FullImageBlockEditor({
+  payload,
+  onChange,
+}: {
+  payload: FullImagePayload;
+  onChange: (p: FullImagePayload) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-gray-500">Layout: Full width</p>
+      <ImageSlotEditor label="Image" value={payload} onChange={onChange} />
+    </div>
+  );
+}
+
+function SplitImageBlockEditor({
+  payload,
+  onChange,
+}: {
+  payload: SplitImagePayload;
+  onChange: (p: SplitImagePayload) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div>
+        <Label className="text-sm font-medium">Wide side</Label>
+        <div className="flex gap-3 mt-2">
+          {(["left", "right"] as const).map((side) => (
+            <label key={side} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="wide"
+                value={side}
+                checked={payload.wide === side}
+                onChange={() => onChange({ ...payload, wide: side })}
+                className="accent-blue-600"
+              />
+              <span className="text-sm capitalize">Wide {side}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <ImageSlotEditor
+          label="Left image"
+          value={payload.left}
+          onChange={(v) => onChange({ ...payload, left: v })}
+        />
+        <ImageSlotEditor
+          label="Right image"
+          value={payload.right}
+          onChange={(v) => onChange({ ...payload, right: v })}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Block row ────────────────────────────────────────────────────────────────
+
+function BlockRow({
+  block,
+  index,
+  total,
+  onUpdate,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
+  isDragOver,
+  dragHandleProps,
+}: {
+  block: EditorBlock;
+  index: number;
+  total: number;
+  onUpdate: (payload: BlockPayload) => void;
+  onRemove: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  isDragOver: boolean;
+  dragHandleProps: React.HTMLAttributes<HTMLDivElement>;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+
+  const previewText = (() => {
+    if (block.type === "text") {
+      const p = (block.payload as TextBlockPayload).paragraphs[0] ?? "";
+      return p.length > 80 ? p.slice(0, 80) + "…" : p || "(empty paragraph)";
+    }
+    if (block.type === "full-image") {
+      const src = (block.payload as FullImagePayload).src;
+      return src ? src.split("/").pop() : "(no image)";
+    }
+    const sp = block.payload as SplitImagePayload;
+    const l = sp.left?.src?.split("/").pop() ?? "(none)";
+    const r = sp.right?.src?.split("/").pop() ?? "(none)";
+    return `Left: ${l} · Right: ${r}`;
+  })();
+
+  return (
+    <>
+      <div
+        className={`border rounded-lg bg-white transition-colors ${
+          isDragOver ? "border-blue-400 ring-2 ring-blue-200" : "border-gray-200"
+        }`}
+      >
+        {/* Block header */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-t-lg border-b border-gray-200">
+          {/* Drag handle */}
+          <div
+            {...dragHandleProps}
+            className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 p-1"
+          >
+            <GripVertical className="w-4 h-4" />
+          </div>
+
+          <Badge variant={blockBadgeColor(block.type) as any} className="text-xs shrink-0">
+            {blockLabel(block.type)}
+          </Badge>
+
+          <p className="text-xs text-gray-500 truncate flex-1 min-w-0">{previewText}</p>
+
+          {/* Move up/down (keyboard-accessible alternative to DnD) */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 shrink-0"
+            disabled={index === 0}
+            onClick={onMoveUp}
+            title="Move up"
+          >
+            <ChevronUp className="w-3 h-3" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 shrink-0"
+            disabled={index === total - 1}
+            onClick={onMoveDown}
+            title="Move down"
+          >
+            <ChevronDown className="w-3 h-3" />
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 shrink-0 text-red-400 hover:text-red-600"
+            onClick={() => setConfirmRemove(true)}
+            title="Remove block"
+          >
+            <Trash2 className="w-3 h-3" />
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 shrink-0"
+            onClick={() => setExpanded((v) => !v)}
+            title={expanded ? "Collapse" : "Expand"}
+          >
+            {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </Button>
+        </div>
+
+        {/* Block editor body */}
+        {expanded && (
+          <div className="p-4">
+            {block.type === "text" && (
+              <TextBlockEditor
+                payload={block.payload as TextBlockPayload}
+                onChange={onUpdate}
+              />
+            )}
+            {block.type === "full-image" && (
+              <FullImageBlockEditor
+                payload={block.payload as FullImagePayload}
+                onChange={onUpdate}
+              />
+            )}
+            {block.type === "split-image" && (
+              <SplitImageBlockEditor
+                payload={block.payload as SplitImagePayload}
+                onChange={onUpdate}
+              />
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Remove confirmation dialog */}
+      <AlertDialog open={confirmRemove} onOpenChange={setConfirmRemove}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove block?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the "{blockLabel(block.type)}" block. The change won't be saved
+              until you click Save draft or Publish.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmRemove(false);
+                onRemove();
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+// ─── Add block button ─────────────────────────────────────────────────────────
+
+function AddBlockRow({ onAdd }: { onAdd: (type: BlockType) => void }) {
+  const [open, setOpen] = useState(false);
+
+  const options: { type: BlockType; label: string; desc: string }[] = [
+    { type: "text", label: "Text block", desc: "One or more narrative paragraphs" },
+    { type: "full-image", label: "Full image", desc: "Single edge-to-edge image with caption" },
+    {
+      type: "split-image",
+      label: "Split image pair",
+      desc: "Two images side by side with wide-side control",
+    },
+  ];
+
+  return (
+    <div className="relative">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="w-full border-dashed"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Plus className="w-4 h-4 mr-2" /> Add block
+      </Button>
+      {open && (
+        <div className="absolute left-0 right-0 mt-1 z-10 bg-white border border-gray-200 rounded-lg shadow-lg divide-y">
+          {options.map((opt) => (
+            <button
+              key={opt.type}
+              type="button"
+              className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
+              onClick={() => {
+                onAdd(opt.type);
+                setOpen(false);
+              }}
+            >
+              <p className="text-sm font-medium text-gray-900">{opt.label}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{opt.desc}</p>
+            </button>
+          ))}
+        </div>
+      )}
+      {open && (
+        <div className="fixed inset-0 z-[9]" onClick={() => setOpen(false)} />
+      )}
+    </div>
+  );
+}
+
+// ─── Main editor ──────────────────────────────────────────────────────────────
 
 export function AdminEditProjectPage() {
   return (
@@ -14,19 +568,521 @@ export function AdminEditProjectPage() {
 function AdminEditProjectContent({ user }: { user: string }) {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // ── Fetch project + blocks ─────────────────────────────────────────────────
+  const { data, isLoading, isError } = useQuery({
+    queryKey: [`/api/admin/projects/${id}/full`],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/projects/${id}/full`);
+      if (!res.ok) throw new Error("Failed to load project");
+      return res.json() as Promise<{ project: any; blocks: any[] }>;
+    },
+    staleTime: 0,
+  });
+
+  // ── Fetch project list (for next-project dropdown) ─────────────────────────
+  const { data: allProjects } = useQuery<any[]>({
+    queryKey: ["/api/admin/projects"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/projects");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  // ── Local editor state ─────────────────────────────────────────────────────
+  const [state, setState] = useState<EditorState | null>(null);
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    if (data && !initialized) {
+      setState(serverToEditor(data.project, data.blocks));
+      setInitialized(true);
+    }
+  }, [data, initialized]);
+
+  // ── DnD state ──────────────────────────────────────────────────────────────
+  const dragIndex = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const set = useCallback((patch: Partial<EditorState>) => {
+    setState((prev) => (prev ? { ...prev, ...patch } : prev));
+  }, []);
+
+  const setMeta = useCallback((patch: Partial<ProjectMeta>) => {
+    setState((prev) =>
+      prev ? { ...prev, metadata: { ...prev.metadata, ...patch } } : prev
+    );
+  }, []);
+
+  const updateBlock = useCallback((index: number, payload: BlockPayload) => {
+    setState((prev) => {
+      if (!prev) return prev;
+      const blocks = [...prev.blocks];
+      blocks[index] = { ...blocks[index], payload };
+      return { ...prev, blocks };
+    });
+  }, []);
+
+  const removeBlock = useCallback((index: number) => {
+    setState((prev) => {
+      if (!prev) return prev;
+      return { ...prev, blocks: prev.blocks.filter((_, i) => i !== index) };
+    });
+  }, []);
+
+  const addBlock = useCallback((type: BlockType, afterIndex?: number) => {
+    setState((prev) => {
+      if (!prev) return prev;
+      const block = newBlock(type);
+      const blocks = [...prev.blocks];
+      const insertAt = afterIndex !== undefined ? afterIndex + 1 : blocks.length;
+      blocks.splice(insertAt, 0, block);
+      return { ...prev, blocks };
+    });
+  }, []);
+
+  const moveBlock = useCallback((fromIndex: number, toIndex: number) => {
+    setState((prev) => {
+      if (!prev) return prev;
+      const blocks = [...prev.blocks];
+      const [moved] = blocks.splice(fromIndex, 1);
+      blocks.splice(toIndex, 0, moved);
+      return { ...prev, blocks };
+    });
+  }, []);
+
+  // ── DnD handlers ───────────────────────────────────────────────────────────
+  const handleDragStart = (index: number) => {
+    dragIndex.current = index;
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (dragIndex.current !== null && dragIndex.current !== index) {
+      moveBlock(dragIndex.current, index);
+    }
+    dragIndex.current = null;
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    dragIndex.current = null;
+    setDragOverIndex(null);
+  };
+
+  // ── Save / Publish mutations ───────────────────────────────────────────────
+  const saveMutation = useMutation({
+    mutationFn: async (publish: boolean) => {
+      if (!state) throw new Error("No state");
+      const url = publish
+        ? `/api/admin/projects/${id}/publish`
+        : `/api/admin/projects/${id}/full`;
+      const method = publish ? "POST" : "PUT";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editorToPayload(state)),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "Save failed");
+      }
+      return res.json();
+    },
+    onSuccess: (data, publish) => {
+      // Sync server state back
+      setState((prev) =>
+        prev
+          ? serverToEditor(data.project, data.blocks)
+          : prev
+      );
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/projects"] });
+      toast({
+        title: publish ? "Published!" : "Draft saved",
+        description: publish
+          ? "The project is now live on the site."
+          : "Your changes have been saved as a draft.",
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Save failed",
+        description: err.message ?? "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // ── Render states ──────────────────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <AdminLayout user={user}>
+        <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
+          Loading project…
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (isError || !state) {
+    return (
+      <AdminLayout user={user}>
+        <div className="flex items-center justify-center h-64 text-red-500 text-sm">
+          Failed to load project.{" "}
+          <button className="underline ml-2" onClick={() => navigate("/admin/projects")}>
+            Back to projects
+          </button>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  const isSaving = saveMutation.isPending;
+  const projectSlug = state.slug;
 
   return (
     <AdminLayout user={user}>
-      <div className="flex items-center gap-3 mb-8">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/admin/projects")}>
+      <Toaster />
+
+      {/* ── Sticky header ─────────────────────────────────────────────────── */}
+      <div className="sticky top-0 z-20 bg-white border-b border-gray-200 -mx-6 px-6 py-3 mb-8 flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate("/admin/projects")}
+          className="shrink-0"
+        >
           ← Back
         </Button>
-        <h1 className="text-xl font-semibold text-gray-900">Edit Project</h1>
-        <code className="text-xs text-gray-400 font-mono">{id}</code>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-base font-semibold text-gray-900 truncate">
+            {state.title || "(Untitled project)"}
+          </h1>
+          <p className="text-xs text-gray-400 font-mono truncate">/work/{state.slug}</p>
+        </div>
+        <a
+          href={`/work/${projectSlug}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 border border-gray-200 rounded px-2 py-1"
+        >
+          Preview <ExternalLink className="w-3 h-3" />
+        </a>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={isSaving}
+          onClick={() => saveMutation.mutate(false)}
+          className="shrink-0"
+        >
+          {isSaving ? "Saving…" : "Save draft"}
+        </Button>
+        <Button
+          size="sm"
+          disabled={isSaving}
+          onClick={() => saveMutation.mutate(true)}
+          className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          {isSaving ? "Publishing…" : "Publish"}
+        </Button>
       </div>
-      <div className="bg-white border border-gray-200 rounded-lg p-8 text-center text-sm text-gray-400">
-        Content editor coming soon (Task: CMS case study editor)
+
+      <div className="space-y-8 max-w-3xl">
+        {/* ── Section: Basic metadata ────────────────────────────────────── */}
+        <Section title="Project info">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Title">
+              <Input
+                value={state.title}
+                onChange={(e) => set({ title: e.target.value })}
+                placeholder="Project title"
+              />
+            </Field>
+            <Field label="Slug" hint="URL: /work/{slug}">
+              <Input
+                value={state.slug}
+                onChange={(e) =>
+                  set({ slug: e.target.value.toLowerCase().replace(/\s+/g, "-") })
+                }
+                placeholder="my-project"
+              />
+            </Field>
+            <Field label="Case study label">
+              <Input
+                value={state.caseStudyLabel}
+                onChange={(e) => set({ caseStudyLabel: e.target.value })}
+                placeholder="CASE STUDY"
+              />
+            </Field>
+            <Field label="Client">
+              <Input
+                value={state.metadata.client}
+                onChange={(e) => setMeta({ client: e.target.value })}
+                placeholder="Client name"
+              />
+            </Field>
+            <Field label="Year">
+              <Input
+                value={state.metadata.year}
+                onChange={(e) => setMeta({ year: e.target.value })}
+                placeholder="2024"
+              />
+            </Field>
+            <Field label="Scope (optional)">
+              <Input
+                value={state.metadata.scope}
+                onChange={(e) => setMeta({ scope: e.target.value })}
+                placeholder="UX Design, Research…"
+              />
+            </Field>
+            <Field label="Role (optional)">
+              <Input
+                value={state.metadata.role}
+                onChange={(e) => setMeta({ role: e.target.value })}
+                placeholder="Lead Designer…"
+              />
+            </Field>
+          </div>
+
+          <Field label="Pull quote">
+            <Textarea
+              value={state.quote}
+              onChange={(e) => set({ quote: e.target.value })}
+              rows={3}
+              placeholder="A key insight or headline quote shown in the narrative section"
+              className="resize-none"
+            />
+          </Field>
+
+          <Field label="Meta description" hint="Used as the HTML <meta> description for SEO (max 160 chars)">
+            <Textarea
+              value={state.metaDescription}
+              onChange={(e) => set({ metaDescription: e.target.value })}
+              rows={2}
+              maxLength={160}
+              placeholder="Brief summary of the project…"
+              className="resize-none"
+            />
+            <p className="text-xs text-gray-400 mt-1 text-right">
+              {state.metaDescription.length}/160
+            </p>
+          </Field>
+
+          <div className="flex items-center gap-3">
+            <Switch
+              id="show-homepage"
+              checked={state.showOnHomepage}
+              onCheckedChange={(v) => set({ showOnHomepage: v })}
+            />
+            <Label htmlFor="show-homepage" className="cursor-pointer">
+              Show on homepage
+            </Label>
+          </div>
+        </Section>
+
+        {/* ── Section: Hero image ────────────────────────────────────────── */}
+        <Section title="Hero image">
+          <ImagePicker
+            value={state.heroImageUrl || null}
+            onChange={(url) => set({ heroImageUrl: url })}
+            label="Hero image"
+          />
+          <Field label="Alt text">
+            <Input
+              value={state.heroImageAlt}
+              onChange={(e) => set({ heroImageAlt: e.target.value })}
+              placeholder="Describe the hero image for screen readers"
+            />
+          </Field>
+        </Section>
+
+        {/* ── Section: Description paragraphs ───────────────────────────── */}
+        <Section title="Body description">
+          <p className="text-xs text-gray-500 mb-3">
+            Each row is a separate paragraph displayed beneath the pull quote.
+          </p>
+          {state.description.map((para, i) => (
+            <div key={i} className="flex gap-2 mb-2">
+              <Textarea
+                value={para}
+                rows={3}
+                onChange={(e) => {
+                  const next = [...state.description];
+                  next[i] = e.target.value;
+                  set({ description: next });
+                }}
+                placeholder={`Paragraph ${i + 1}`}
+                className="flex-1 resize-none"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 mt-1 shrink-0 text-red-400 hover:text-red-600"
+                onClick={() => {
+                  const next = state.description.filter((_, idx) => idx !== i);
+                  set({ description: next.length ? next : [""] });
+                }}
+                title="Remove paragraph"
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => set({ description: [...state.description, ""] })}
+          >
+            <Plus className="w-3 h-3 mr-1" /> Add paragraph
+          </Button>
+        </Section>
+
+        {/* ── Section: Content blocks ────────────────────────────────────── */}
+        <Section title="Content blocks">
+          <p className="text-xs text-gray-500 mb-3">
+            Drag blocks to reorder them. Changes take effect when you save.
+          </p>
+
+          {state.blocks.length === 0 && (
+            <div className="border-2 border-dashed rounded-lg p-8 text-center text-sm text-gray-400 mb-3">
+              No content blocks yet. Add one below.
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {state.blocks.map((block, index) => (
+              <div
+                key={block._key}
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+              >
+                <BlockRow
+                  block={block}
+                  index={index}
+                  total={state.blocks.length}
+                  onUpdate={(payload) => updateBlock(index, payload)}
+                  onRemove={() => removeBlock(index)}
+                  onMoveUp={() => moveBlock(index, index - 1)}
+                  onMoveDown={() => moveBlock(index, index + 1)}
+                  isDragOver={dragOverIndex === index && dragIndex.current !== index}
+                  dragHandleProps={{}}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3">
+            <AddBlockRow onAdd={(type) => addBlock(type)} />
+          </div>
+        </Section>
+
+        {/* ── Section: Next project ──────────────────────────────────────── */}
+        <Section title="Next project">
+          <p className="text-xs text-gray-500 mb-3">
+            Shown as a teaser strip at the bottom of this case study.
+          </p>
+          <Field label="Next project">
+            <Select
+              value={state.nextProjectSlug || "__none__"}
+              onValueChange={(v) => set({ nextProjectSlug: v === "__none__" ? "" : v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a project…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— None —</SelectItem>
+                {(allProjects ?? [])
+                  .filter((p: any) => p.id !== id)
+                  .map((p: any) => (
+                    <SelectItem key={p.id} value={p.slug}>
+                      {p.title || p.slug}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          {state.nextProjectSlug && (
+            <div className="mt-4">
+              <ImagePicker
+                value={state.nextProjectImageUrl || null}
+                onChange={(url) => set({ nextProjectImageUrl: url })}
+                label="Teaser image (optional)"
+              />
+            </div>
+          )}
+        </Section>
+
+        {/* ── Bottom save bar ────────────────────────────────────────────── */}
+        <div className="flex gap-3 pt-4 pb-8 border-t border-gray-100">
+          <Button
+            variant="outline"
+            disabled={isSaving}
+            onClick={() => saveMutation.mutate(false)}
+          >
+            {isSaving ? "Saving…" : "Save draft"}
+          </Button>
+          <Button
+            disabled={isSaving}
+            onClick={() => saveMutation.mutate(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {isSaving ? "Publishing…" : "Publish"}
+          </Button>
+        </div>
       </div>
     </AdminLayout>
+  );
+}
+
+// ─── Layout helpers ───────────────────────────────────────────────────────────
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+      <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2">
+        {title}
+      </h2>
+      {children}
+    </div>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-sm font-medium text-gray-700">
+        {label}
+        {hint && <span className="ml-1 font-normal text-gray-400 text-xs">— {hint}</span>}
+      </Label>
+      {children}
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { type User, type InsertUser, users, cmsProjects, type CmsProject, type InsertCmsProject, cmsMedia, type CmsMedia, type InsertCmsMedia, cmsContentBlocks } from "@shared/schema";
+import { type User, type InsertUser, users, cmsProjects, type CmsProject, type InsertCmsProject, cmsMedia, type CmsMedia, type InsertCmsMedia, cmsContentBlocks, type CmsContentBlock, type InsertCmsContentBlock } from "@shared/schema";
 import { db } from "./db";
 import { eq, isNull, asc, desc, sql } from "drizzle-orm";
 
@@ -15,6 +15,16 @@ export interface IStorage {
   archiveCmsProject(id: string): Promise<void>;
   restoreCmsProject(id: string): Promise<void>;
   updateCmsProjectsOrder(items: { id: string; homepageOrder: number }[]): Promise<void>;
+
+  // CMS Content Blocks
+  getContentBlocksByProjectId(projectId: string): Promise<CmsContentBlock[]>;
+  replaceContentBlocks(projectId: string, blocks: Omit<InsertCmsContentBlock, 'projectId'>[]): Promise<void>;
+  /** Update project fields and replace its content blocks atomically in one transaction. */
+  updateProjectWithBlocks(
+    id: string,
+    updates: Partial<InsertCmsProject>,
+    blocks: Omit<InsertCmsContentBlock, 'projectId'>[]
+  ): Promise<{ project: CmsProject; blocks: CmsContentBlock[] }>;
 
   // CMS Media
   createCmsMedia(media: InsertCmsMedia): Promise<CmsMedia>;
@@ -121,6 +131,63 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  // ─── CMS Content Blocks ───────────────────────────────────────────────────
+
+  async getContentBlocksByProjectId(projectId: string): Promise<CmsContentBlock[]> {
+    return db
+      .select()
+      .from(cmsContentBlocks)
+      .where(eq(cmsContentBlocks.projectId, projectId))
+      .orderBy(asc(cmsContentBlocks.position));
+  }
+
+  /**
+   * Replaces all content blocks for a project in a single transaction.
+   * Existing blocks are deleted and the new list is inserted with sequential positions.
+   */
+  async replaceContentBlocks(
+    projectId: string,
+    blocks: Omit<InsertCmsContentBlock, 'projectId'>[]
+  ): Promise<void> {
+    await db.transaction(async (tx) => {
+      await tx.delete(cmsContentBlocks).where(eq(cmsContentBlocks.projectId, projectId));
+      if (blocks.length > 0) {
+        await tx.insert(cmsContentBlocks).values(
+          blocks.map((b, i) => ({ ...b, projectId, position: i }))
+        );
+      }
+    });
+  }
+
+  /** Update project fields + replace blocks in a single DB transaction. */
+  async updateProjectWithBlocks(
+    id: string,
+    updates: Partial<InsertCmsProject>,
+    blocks: Omit<InsertCmsContentBlock, 'projectId'>[]
+  ): Promise<{ project: CmsProject; blocks: CmsContentBlock[] }> {
+    let project!: CmsProject;
+    let newBlocks!: CmsContentBlock[];
+    await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(cmsProjects)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(cmsProjects.id, id))
+        .returning();
+      project = updated;
+
+      await tx.delete(cmsContentBlocks).where(eq(cmsContentBlocks.projectId, id));
+      if (blocks.length > 0) {
+        newBlocks = await tx
+          .insert(cmsContentBlocks)
+          .values(blocks.map((b, i) => ({ ...b, projectId: id, position: i })))
+          .returning();
+      } else {
+        newBlocks = [];
+      }
+    });
+    return { project, blocks: newBlocks };
+  }
+
   // ─── CMS Media ────────────────────────────────────────────────────────────
 
   async createCmsMedia(media: InsertCmsMedia): Promise<CmsMedia> {
@@ -142,25 +209,42 @@ export class DatabaseStorage implements IStorage {
   }
 
   /**
-   * Returns true if any cms_content_blocks payload JSON references this media,
-   * or if any cms_projects has this media as its heroImageId.
+   * Returns true if any cms_projects or cms_content_blocks row references this
+   * media asset (by ID or by URL).
    *
-   * Content blocks store the public URL (e.g. "/uploads/uuid.jpg") rather than
-   * the cms_media row ID, so we check both the ID (for heroImageId FK) and the
-   * URL (for block payloads). This prevents deleting images that are in use on
-   * public pages even if the block schema evolves.
+   * Checked columns:
+   * - cms_projects.heroImageId        (legacy media-ID reference)
+   * - cms_projects.heroImageUrl       (URL stored by the editor ImagePicker)
+   * - cms_projects.nextProjectImageUrl (teaser image URL)
+   * - cms_content_blocks.payload      (all block image URLs stored in JSON)
    */
   async isMediaReferenced(id: string, url?: string): Promise<boolean> {
     // Check heroImageId references in projects (stored as media ID)
-    const [projectRef] = await db
+    const [projectIdRef] = await db
       .select({ id: cmsProjects.id })
       .from(cmsProjects)
       .where(eq(cmsProjects.heroImageId, id))
       .limit(1);
-    if (projectRef) return true;
+    if (projectIdRef) return true;
+
+    // Check URL-based columns in projects when a URL is provided
+    if (url) {
+      const [heroUrlRef] = await db
+        .select({ id: cmsProjects.id })
+        .from(cmsProjects)
+        .where(eq(cmsProjects.heroImageUrl, url))
+        .limit(1);
+      if (heroUrlRef) return true;
+
+      const [nextImgRef] = await db
+        .select({ id: cmsProjects.id })
+        .from(cmsProjects)
+        .where(eq(cmsProjects.nextProjectImageUrl, url))
+        .limit(1);
+      if (nextImgRef) return true;
+    }
 
     // Check payload JSON in content blocks for the media ID or URL.
-    // Blocks typically store the URL, but we search for both to be future-safe.
     const searchTerms = [id];
     if (url) searchTerms.push(url);
 
