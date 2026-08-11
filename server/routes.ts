@@ -6,6 +6,51 @@ import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import passport from "passport";
 import { requireAdmin } from "./auth";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { promises as fsp } from "fs";
+import { randomUUID } from "crypto";
+import { fileTypeFromBuffer } from "file-type";
+
+// ─── Multer upload config ──────────────────────────────────────────────────
+
+// Store uploads in a top-level `uploads/` directory that is outside the build
+// output (`dist/`) and the source tree (`client/`). This directory is mutable
+// runtime data, not a build artifact, so it persists across restarts and
+// deployments on Replit's durable filesystem.
+const UPLOADS_DIR = path.resolve(process.cwd(), "uploads");
+// Ensure the uploads directory exists at startup
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+/**
+ * Maps verified MIME types to canonical file extensions.
+ * These are the only types accepted at the server side.
+ */
+const ALLOWED_MIME_TO_EXT: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+};
+
+/**
+ * Use memory storage so we can inspect the raw bytes before writing to disk.
+ * The actual file write happens in the route handler after content verification.
+ */
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+  // Coarse pre-check on declared MIME — not trusted for security, but filters
+  // obvious non-image requests early before we buffer the full file.
+  fileFilter: (_req, file, cb) => {
+    if (Object.keys(ALLOWED_MIME_TO_EXT).includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only JPEG, PNG, WebP, and GIF images are allowed"));
+    }
+  },
+});
 
 /** Escape special HTML characters so untrusted values are safe in HTML sinks. */
 function escapeHtml(str: string): string {
@@ -268,6 +313,118 @@ export async function registerRoutes(
     } catch (err) {
       console.error("POST /api/admin/projects/:id/restore error:", err);
       return res.status(500).json({ error: "Failed to restore project" });
+    }
+  });
+
+  // ─── Admin media endpoints ────────────────────────────────────────────────
+
+  // POST /api/admin/media/upload — accept a multipart image upload
+  app.post(
+    "/api/admin/media/upload",
+    requireAdmin,
+    (req: Request, res: Response, next) => {
+      upload.single("file")(req, res, (err) => {
+        if (err instanceof multer.MulterError) {
+          if (err.code === "LIMIT_FILE_SIZE") {
+            return res.status(400).json({ error: "File exceeds the 20 MB size limit" });
+          }
+          return res.status(400).json({ error: err.message });
+        }
+        if (err) {
+          return res.status(400).json({ error: err.message ?? "Upload error" });
+        }
+        next();
+      });
+    },
+    async (req: Request, res: Response) => {
+      const file = (req as any).file as Express.Multer.File | undefined;
+      if (!file || !file.buffer) {
+        return res.status(400).json({ error: "No file provided" });
+      }
+
+      // ── Content verification ──────────────────────────────────────────────
+      // Detect the real format from the file bytes (magic numbers).
+      // This is the security-critical check — the client-declared MIME type
+      // is untrusted and cannot prevent spoofed uploads.
+      let detectedType: { mime: string; ext: string } | undefined;
+      try {
+        const ft = await fileTypeFromBuffer(file.buffer);
+        if (ft && ALLOWED_MIME_TO_EXT[ft.mime]) {
+          detectedType = { mime: ft.mime, ext: ALLOWED_MIME_TO_EXT[ft.mime] };
+        }
+      } catch {
+        // If detection throws, treat as invalid
+      }
+
+      if (!detectedType) {
+        return res.status(400).json({
+          error: "File content is not a valid JPEG, PNG, WebP, or GIF image",
+        });
+      }
+
+      // Derive the filename from the verified type, never from originalname
+      const filename = `${randomUUID()}${detectedType.ext}`;
+      const destPath = path.join(UPLOADS_DIR, filename);
+
+      try {
+        await fsp.writeFile(destPath, file.buffer);
+      } catch (err) {
+        console.error("Failed to write upload to disk:", err);
+        return res.status(500).json({ error: "Failed to save uploaded file" });
+      }
+
+      try {
+        const url = `/uploads/${filename}`;
+        const media = await storage.createCmsMedia({
+          filename,
+          originalName: file.originalname,
+          url,
+          mimeType: detectedType.mime,
+          size: file.buffer.length,
+        });
+        return res.status(201).json(media);
+      } catch (err) {
+        console.error("POST /api/admin/media/upload error:", err);
+        // Best-effort cleanup if DB write fails
+        fsp.unlink(destPath).catch(() => {});
+        return res.status(500).json({ error: "Failed to save media record" });
+      }
+    }
+  );
+
+  // GET /api/admin/media — list all media, newest first
+  app.get("/api/admin/media", requireAdmin, async (_req: Request, res: Response) => {
+    try {
+      const media = await storage.getCmsMedia();
+      return res.json(media);
+    } catch (err) {
+      console.error("GET /api/admin/media error:", err);
+      return res.status(500).json({ error: "Failed to fetch media" });
+    }
+  });
+
+  // DELETE /api/admin/media/:id — remove DB record (and file) if not referenced
+  app.delete("/api/admin/media/:id", requireAdmin, async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    try {
+      const media = await storage.getCmsMediaById(id);
+      if (!media) {
+        return res.status(404).json({ error: "Media not found" });
+      }
+      const referenced = await storage.isMediaReferenced(id, media.url);
+      if (referenced) {
+        return res.status(409).json({
+          error: "This image is in use by a project or content block and cannot be deleted",
+        });
+      }
+      await storage.deleteCmsMedia(id);
+      // Best-effort file removal; ignore errors if file is already gone
+      const filePath = path.join(UPLOADS_DIR, media.filename);
+      fs.unlink(filePath, () => {});
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("DELETE /api/admin/media/:id error:", err);
+      return res.status(500).json({ error: "Failed to delete media" });
     }
   });
 

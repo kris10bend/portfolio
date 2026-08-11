@@ -11,6 +11,7 @@ import { ContactPage } from "@/pages/ContactPage";
 import { AdminLoginPage } from "@/pages/admin/AdminLoginPage";
 import { AdminProjectsPage } from "@/pages/admin/AdminProjectsPage";
 import { AdminEditProjectPage } from "@/pages/admin/AdminEditProjectPage";
+import { AdminMediaPage } from "@/pages/admin/AdminMediaPage";
 
 function Router() {
   return (
@@ -28,6 +29,7 @@ function Router() {
         {() => <Redirect to="/admin/projects" />}
       </Route>
       <Route path="/admin/projects/:id/edit" component={AdminEditProjectPage} />
+      <Route path="/admin/media" component={AdminMediaPage} />
 
       {/* Fallback to 404 */}
       <Route component={NotFound} />

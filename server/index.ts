@@ -3,6 +3,8 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupAuth } from "./auth";
+import path from "path";
+import fs from "fs";
 
 const app = express();
 const httpServer = createServer(app)
@@ -75,6 +77,23 @@ app.use((req, res, next) => {
     console.error("DB schema push failed — refusing to start:", err);
     process.exit(1);
   }
+
+  // Serve user-uploaded images from the top-level uploads/ directory.
+  // This is outside both the source tree and build output so it persists across
+  // builds and deployments on Replit's durable filesystem.
+  const uploadsDir = path.resolve(process.cwd(), "uploads");
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  app.use(
+    "/uploads",
+    (_req, res, next) => {
+      // Defense-in-depth: prevent browsers from MIME-sniffing the response
+      // type. Combined with magic-byte verification on upload, this closes the
+      // stored-XSS path even if a file slips through with a wrong extension.
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      next();
+    },
+    express.static(uploadsDir),
+  );
 
   setupAuth(app);
   await registerRoutes(httpServer, app);

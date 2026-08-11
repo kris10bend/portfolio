@@ -1,6 +1,6 @@
-import { type User, type InsertUser, users, cmsProjects, type CmsProject, type InsertCmsProject } from "@shared/schema";
+import { type User, type InsertUser, users, cmsProjects, type CmsProject, type InsertCmsProject, cmsMedia, type CmsMedia, type InsertCmsMedia, cmsContentBlocks } from "@shared/schema";
 import { db } from "./db";
-import { eq, isNull, asc } from "drizzle-orm";
+import { eq, isNull, asc, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -15,6 +15,13 @@ export interface IStorage {
   archiveCmsProject(id: string): Promise<void>;
   restoreCmsProject(id: string): Promise<void>;
   updateCmsProjectsOrder(items: { id: string; homepageOrder: number }[]): Promise<void>;
+
+  // CMS Media
+  createCmsMedia(media: InsertCmsMedia): Promise<CmsMedia>;
+  getCmsMedia(): Promise<CmsMedia[]>;
+  getCmsMediaById(id: string): Promise<CmsMedia | undefined>;
+  deleteCmsMedia(id: string): Promise<void>;
+  isMediaReferenced(id: string, url?: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -112,6 +119,61 @@ export class DatabaseStorage implements IStorage {
           .where(eq(cmsProjects.id, id));
       }
     });
+  }
+
+  // ─── CMS Media ────────────────────────────────────────────────────────────
+
+  async createCmsMedia(media: InsertCmsMedia): Promise<CmsMedia> {
+    const [created] = await db.insert(cmsMedia).values(media).returning();
+    return created;
+  }
+
+  async getCmsMedia(): Promise<CmsMedia[]> {
+    return db.select().from(cmsMedia).orderBy(desc(cmsMedia.createdAt));
+  }
+
+  async getCmsMediaById(id: string): Promise<CmsMedia | undefined> {
+    const [media] = await db.select().from(cmsMedia).where(eq(cmsMedia.id, id));
+    return media;
+  }
+
+  async deleteCmsMedia(id: string): Promise<void> {
+    await db.delete(cmsMedia).where(eq(cmsMedia.id, id));
+  }
+
+  /**
+   * Returns true if any cms_content_blocks payload JSON references this media,
+   * or if any cms_projects has this media as its heroImageId.
+   *
+   * Content blocks store the public URL (e.g. "/uploads/uuid.jpg") rather than
+   * the cms_media row ID, so we check both the ID (for heroImageId FK) and the
+   * URL (for block payloads). This prevents deleting images that are in use on
+   * public pages even if the block schema evolves.
+   */
+  async isMediaReferenced(id: string, url?: string): Promise<boolean> {
+    // Check heroImageId references in projects (stored as media ID)
+    const [projectRef] = await db
+      .select({ id: cmsProjects.id })
+      .from(cmsProjects)
+      .where(eq(cmsProjects.heroImageId, id))
+      .limit(1);
+    if (projectRef) return true;
+
+    // Check payload JSON in content blocks for the media ID or URL.
+    // Blocks typically store the URL, but we search for both to be future-safe.
+    const searchTerms = [id];
+    if (url) searchTerms.push(url);
+
+    for (const term of searchTerms) {
+      const [blockRef] = await db
+        .select({ id: cmsContentBlocks.id })
+        .from(cmsContentBlocks)
+        .where(sql`payload::text LIKE ${'%' + term + '%'}`)
+        .limit(1);
+      if (blockRef) return true;
+    }
+
+    return false;
   }
 }
 
