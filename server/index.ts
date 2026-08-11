@@ -65,6 +65,17 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Ensure the DB schema is current before accepting requests.
+  // This runs `drizzle-kit push` which is idempotent — safe on every startup.
+  // If the push fails the process exits so we never serve stale-schema traffic.
+  try {
+    const { execSync } = await import("child_process");
+    execSync("npm run db:push", { stdio: "inherit" });
+  } catch (err) {
+    console.error("DB schema push failed — refusing to start:", err);
+    process.exit(1);
+  }
+
   setupAuth(app);
   await registerRoutes(httpServer, app);
 

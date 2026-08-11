@@ -141,9 +141,134 @@ export async function registerRoutes(
   // GET /api/admin/me — check authentication status
   app.get("/api/admin/me", (req: Request, res: Response) => {
     if (req.isAuthenticated()) {
-      return res.json({ authenticated: true });
+      const user = req.user as { username?: string } | undefined;
+      return res.json({ authenticated: true, username: user?.username });
     }
     return res.json({ authenticated: false });
+  });
+
+  // ─── Admin project CRUD ────────────────────────────────────────────────────
+
+  // GET /api/admin/projects — list all projects ordered by homepageOrder
+  app.get("/api/admin/projects", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const projects = await storage.getCmsProjects();
+      return res.json(projects);
+    } catch (err) {
+      console.error("GET /api/admin/projects error:", err);
+      return res.status(500).json({ error: "Failed to fetch projects" });
+    }
+  });
+
+  // POST /api/admin/projects — create a blank draft project (no body accepted)
+  app.post("/api/admin/projects", requireAdmin, async (_req: Request, res: Response) => {
+    try {
+      const project = await storage.createCmsProject({});
+      return res.status(201).json(project);
+    } catch (err) {
+      console.error("POST /api/admin/projects error:", err);
+      return res.status(500).json({ error: "Failed to create project" });
+    }
+  });
+
+  // PUT /api/admin/projects/order — bulk-update homepageOrder
+  // Must be defined BEFORE /api/admin/projects/:id to avoid route shadowing
+  app.put("/api/admin/projects/order", requireAdmin, async (req: Request, res: Response) => {
+    const orderSchema = z.array(z.object({ id: z.string(), homepageOrder: z.number().int() }));
+    const parsed = orderSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid order payload" });
+    }
+    try {
+      await storage.updateCmsProjectsOrder(parsed.data);
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("PUT /api/admin/projects/order error:", err);
+      return res.status(500).json({ error: "Failed to save order" });
+    }
+  });
+
+  // PUT /api/admin/projects/:id — update project fields
+  const updateProjectSchema = z.object({
+    title: z.string().max(500).optional(),
+    slug: z.string().max(500).optional(),
+    caseStudyLabel: z.string().max(500).nullable().optional(),
+    quote: z.string().max(5000).nullable().optional(),
+    status: z.enum(["draft", "published"]).optional(),
+    homepageOrder: z.number().int().nullable().optional(),
+    showOnHomepage: z.boolean().optional(),
+    metaDescription: z.string().max(500).nullable().optional(),
+    nextProjectSlug: z.string().max(500).nullable().optional(),
+  });
+
+  app.put("/api/admin/projects/:id", requireAdmin, async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const parsed = updateProjectSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid payload" });
+    }
+    try {
+      const updated = await storage.updateCmsProject(id, parsed.data);
+      if (!updated) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      return res.json(updated);
+    } catch (err) {
+      console.error("PUT /api/admin/projects/:id error:", err);
+      return res.status(500).json({ error: "Failed to update project" });
+    }
+  });
+
+  // POST /api/admin/projects/:id/duplicate — copy project as draft
+  app.post("/api/admin/projects/:id/duplicate", requireAdmin, async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    try {
+      const original = await storage.getCmsProjectById(id);
+      if (!original) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      const copy = await storage.createCmsProject({
+        title: `${original.title} (copy)`,
+        caseStudyLabel: original.caseStudyLabel,
+        quote: original.quote,
+        metaDescription: original.metaDescription,
+        nextProjectSlug: original.nextProjectSlug,
+        status: "draft",
+        showOnHomepage: false,
+      });
+      return res.status(201).json(copy);
+    } catch (err) {
+      console.error("POST /api/admin/projects/:id/duplicate error:", err);
+      return res.status(500).json({ error: "Failed to duplicate project" });
+    }
+  });
+
+  // DELETE /api/admin/projects/:id — soft-archive (sets archivedAt; project can be restored)
+  app.delete("/api/admin/projects/:id", requireAdmin, async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    try {
+      const existing = await storage.getCmsProjectById(id);
+      if (!existing) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+      await storage.archiveCmsProject(id);
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("DELETE /api/admin/projects/:id error:", err);
+      return res.status(500).json({ error: "Failed to archive project" });
+    }
+  });
+
+  // POST /api/admin/projects/:id/restore — unarchive a project
+  app.post("/api/admin/projects/:id/restore", requireAdmin, async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    try {
+      await storage.restoreCmsProject(id);
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("POST /api/admin/projects/:id/restore error:", err);
+      return res.status(500).json({ error: "Failed to restore project" });
+    }
   });
 
   return httpServer;

@@ -56,6 +56,7 @@ export const cmsProjects = pgTable("cms_projects", {
   showOnHomepage: boolean("show_on_homepage").notNull().default(false),
   metaDescription: text("meta_description"),
   nextProjectSlug: text("next_project_slug"),
+  archivedAt: timestamp("archived_at"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
