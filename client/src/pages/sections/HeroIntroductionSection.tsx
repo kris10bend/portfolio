@@ -4,6 +4,7 @@ const slides = [
   { image: "/figmaAssets/home-hero-1.png", background: "#E2CFEA" },
   { image: "/figmaAssets/home-hero-2.png", background: "#FFB41F" },
   { image: "/figmaAssets/home-hero-3.png", background: "#F24333" },
+  { image: "/figmaAssets/home-hero-3b.png", background: "#F24333" },
   { image: "/figmaAssets/home-hero-4.png", background: "#5E0035" },
   { image: "/figmaAssets/home-hero-5.png", background: "#71D4F8" },
   { image: "/figmaAssets/home-hero-6.png", background: "#E2CFEA" },
