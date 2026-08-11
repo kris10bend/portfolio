@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
+import passport from "passport";
+import { requireAdmin } from "./auth";
 
 /** Escape special HTML characters so untrusted values are safe in HTML sinks. */
 function escapeHtml(str: string): string {
@@ -105,6 +107,43 @@ export async function registerRoutes(
       console.error("Unexpected error sending email:", err);
       return res.status(500).json({ error: "An unexpected error occurred. Please try again." });
     }
+  });
+
+  // ─── Admin auth routes ─────────────────────────────────────────────────────
+
+  // POST /api/admin/login — authenticate and create session
+  app.post("/api/admin/login", (req: Request, res: Response, next) => {
+    passport.authenticate(
+      "local",
+      (err: unknown, user: Express.User | false) => {
+        if (err) return next(err);
+        if (!user) {
+          return res.status(401).json({ error: "Invalid credentials" });
+        }
+        req.logIn(user, (loginErr) => {
+          if (loginErr) return next(loginErr);
+          return res.json({ ok: true });
+        });
+      }
+    )(req, res, next);
+  });
+
+  // POST /api/admin/logout — destroy session
+  app.post("/api/admin/logout", requireAdmin, (req: Request, res: Response, next) => {
+    req.logout((err) => {
+      if (err) return next(err);
+      req.session.destroy(() => {
+        res.json({ ok: true });
+      });
+    });
+  });
+
+  // GET /api/admin/me — check authentication status
+  app.get("/api/admin/me", (req: Request, res: Response) => {
+    if (req.isAuthenticated()) {
+      return res.json({ authenticated: true });
+    }
+    return res.json({ authenticated: false });
   });
 
   return httpServer;
