@@ -359,8 +359,51 @@ export async function registerRoutes(
         if (!staticProject) {
           return res.status(404).json({ error: "Project not found" });
         }
-        // Static data already matches ProjectData shape — serve directly.
-        return res.json(staticProject);
+
+        // Derive next-project data from the target's own hero image,
+        // and suppress the section if the target project is not reachable.
+        let transformedNextProject: typeof staticProject.nextProject | undefined;
+        if (staticProject.nextProject) {
+          const nextSlug = staticProject.nextProject.slug;
+          const [nextDbPublished, nextDbAny] = await Promise.all([
+            storage.getPublishedCmsProjectBySlug(nextSlug),
+            storage.getCmsProjectBySlugAny(nextSlug),
+          ]);
+          if (nextDbPublished) {
+            // Target is a published CMS project — use its hero image
+            transformedNextProject = {
+              slug: nextSlug,
+              title: nextDbPublished.title,
+              image: {
+                src: nextDbPublished.heroImageUrl ?? "",
+                alt: nextDbPublished.heroImageAlt ?? nextDbPublished.title,
+              },
+            };
+          } else if (!nextDbAny) {
+            // Target is a static project (not in CMS at all) — derive hero image
+            const nextStaticProject = staticProjects.find((p) => p.slug === nextSlug);
+            if (nextStaticProject) {
+              transformedNextProject = {
+                slug: nextSlug,
+                title: nextStaticProject.title,
+                image: {
+                  src: nextStaticProject.heroImage.src,
+                  alt: nextStaticProject.heroImage.alt,
+                  ...(nextStaticProject.heroImage.isPlaceholder
+                    ? { isPlaceholder: true }
+                    : {}),
+                },
+              };
+            }
+          }
+          // If target is a draft/archived CMS record, transformedNextProject
+          // remains undefined → the section is omitted from the response.
+        }
+
+        return res.json({
+          ...staticProject,
+          nextProject: transformedNextProject,
+        });
       }
 
       // Slug is CMS-managed; only serve if published and not archived.
@@ -376,24 +419,48 @@ export async function registerRoutes(
         .map((b) => blockToGalleryBlock(b.type, b.payload))
         .filter((g): g is GalleryBlock => g !== null);
 
-      // Resolve nextProject title from DB (published only) or static fallback
+      // Resolve nextProject from DB (published only) or static fallback.
+      // Image is always derived from the target project's own hero image —
+      // the separate nextProjectImageUrl column is no longer used.
+      // The section is omitted entirely when the target is not reachable
+      // (draft, archived, or non-existent).
       let nextProject: { slug: string; title: string; image: ProjectImageAsset } | undefined;
       if (dbProject.nextProjectSlug) {
         const nextSlug = dbProject.nextProjectSlug;
-        const nextDbProject = await storage.getPublishedCmsProjectBySlug(nextSlug);
-        const nextTitle =
-          nextDbProject?.title ??
-          staticProjects.find((p) => p.slug === nextSlug)?.title ??
-          nextSlug;
-        nextProject = {
-          slug: nextSlug,
-          title: nextTitle,
-          image: {
-            src: dbProject.nextProjectImageUrl ?? "",
-            alt: nextTitle,
-            isPlaceholder: !dbProject.nextProjectImageUrl,
-          },
-        };
+        const [nextDbProject, nextDbAny] = await Promise.all([
+          storage.getPublishedCmsProjectBySlug(nextSlug),
+          storage.getCmsProjectBySlugAny(nextSlug),
+        ]);
+
+        if (nextDbProject) {
+          // Target is a published CMS project — use its hero image
+          nextProject = {
+            slug: nextSlug,
+            title: nextDbProject.title,
+            image: {
+              src: nextDbProject.heroImageUrl ?? "",
+              alt: nextDbProject.heroImageAlt ?? nextDbProject.title,
+            },
+          };
+        } else if (!nextDbAny) {
+          // Target is a static project (not in CMS at all) — derive hero image
+          const nextStaticProject = staticProjects.find((p) => p.slug === nextSlug);
+          if (nextStaticProject) {
+            nextProject = {
+              slug: nextSlug,
+              title: nextStaticProject.title,
+              image: {
+                src: nextStaticProject.heroImage.src,
+                alt: nextStaticProject.heroImage.alt,
+                ...(nextStaticProject.heroImage.isPlaceholder
+                  ? { isPlaceholder: true }
+                  : {}),
+              },
+            };
+          }
+        }
+        // If target is a draft/archived CMS record, nextProject remains
+        // undefined → the section is omitted from the API response.
       }
 
       const metadata = (dbProject.metadata ?? {}) as {

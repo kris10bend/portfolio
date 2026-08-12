@@ -1662,13 +1662,9 @@ function AdminEditProjectContent({ user }: { user: string }) {
             </Select>
           </Field>
           {state.nextProjectSlug && (
-            <div className="mt-4">
-              <ImagePicker
-                value={state.nextProjectImageUrl || null}
-                onChange={(url) => set({ nextProjectImageUrl: url })}
-                label="Teaser image (optional)"
-              />
-            </div>
+            <p className="mt-3 text-xs text-gray-500">
+              The hero image from the selected project will be used automatically.
+            </p>
           )}
         </Section>
 
