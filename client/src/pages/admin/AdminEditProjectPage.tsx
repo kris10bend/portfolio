@@ -98,6 +98,10 @@ interface EditorState {
   heroImageUrl: string;
   heroImageId: string;
   heroImageAlt: string;
+  featuredImageUrl: string;
+  featuredImageAlt: string;
+  featuredImageObjectPosition: string;
+  featuredImageZoom: number;
   metadata: ProjectMeta;
   description: string[];
   quote: string;
@@ -285,6 +289,10 @@ function serverToEditor(project: any, blocks: any[]): EditorState {
     heroImageUrl: project.heroImageUrl ?? "",
     heroImageId: project.heroImageId ?? "",
     heroImageAlt: project.heroImageAlt ?? "",
+    featuredImageUrl: project.featuredImageUrl ?? "",
+    featuredImageAlt: project.featuredImageAlt ?? "",
+    featuredImageObjectPosition: project.featuredImageObjectPosition ?? "50.0% 50.0%",
+    featuredImageZoom: project.featuredImageZoom ?? 1,
     metadata: {
       client: meta.client ?? "",
       year: meta.year ?? "",
@@ -314,6 +322,10 @@ function editorToPayload(state: EditorState, status?: "draft" | "published") {
     heroImageId: state.heroImageId || null,
     heroImageUrl: state.heroImageUrl || null,
     heroImageAlt: state.heroImageAlt || null,
+    featuredImageUrl: state.featuredImageUrl || null,
+    featuredImageAlt: state.featuredImageAlt || null,
+    featuredImageObjectPosition: state.featuredImageUrl ? (state.featuredImageObjectPosition || null) : null,
+    featuredImageZoom: state.featuredImageUrl ? (state.featuredImageZoom ?? null) : null,
     metadata: {
       client: state.metadata.client,
       year: state.metadata.year,
@@ -328,7 +340,7 @@ function editorToPayload(state: EditorState, status?: "draft" | "published") {
     nextProjectSlug: state.nextProjectSlug || null,
     nextProjectImageUrl: state.nextProjectImageUrl || null,
     ...(status ? { status } : {}),
-    blocks: state.blocks.map((b, i) => ({
+    blocks: state.blocks.map((b) => ({
       type: b.type,
       payload: b.payload,
     })),
@@ -1556,6 +1568,64 @@ function AdminEditProjectContent({ user }: { user: string }) {
                 Shows a blue overlay always visible: "Confidential project — reach out for information." Card is not clickable.
               </p>
             )}
+          </Field>
+        </Section>
+
+        {/* ── Section: Featured image ────────────────────────────────────── */}
+        <Section title="Featured image">
+          <p className="text-xs text-gray-500 -mt-1 mb-1">
+            Shown on homepage cards and at the top of the case study page.
+            Falls back to the hero image if not set.
+          </p>
+          <ImagePicker
+            value={state.featuredImageUrl || null}
+            onChange={(url) => set({ featuredImageUrl: url })}
+            label="Featured image"
+          />
+          {state.featuredImageUrl && (
+            <>
+              <FocalPointCropper
+                src={state.featuredImageUrl}
+                objectPosition={state.featuredImageObjectPosition}
+                zoom={state.featuredImageZoom}
+                onChange={(pos, z) =>
+                  set({ featuredImageObjectPosition: pos, featuredImageZoom: z })
+                }
+              />
+              <div className="space-y-1">
+                <p className="text-xs text-gray-500">Crop preview (card ~3:2)</p>
+                <div
+                  className="overflow-hidden rounded border border-gray-200 bg-gray-100"
+                  style={{ width: 180, height: 120 }}
+                >
+                  <img
+                    src={state.featuredImageUrl}
+                    alt=""
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      objectPosition: state.featuredImageObjectPosition || "50% 50%",
+                      display: "block",
+                      transform:
+                        (state.featuredImageZoom ?? 1) !== 1
+                          ? `scale(${state.featuredImageZoom})`
+                          : undefined,
+                      transformOrigin:
+                        state.featuredImageObjectPosition || "50% 50%",
+                    }}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+          <Field label="Alt text">
+            <Input
+              value={state.featuredImageAlt}
+              onChange={(e) => set({ featuredImageAlt: e.target.value })}
+              placeholder="Describe the featured image for screen readers"
+              className="mt-1"
+            />
           </Field>
         </Section>
 

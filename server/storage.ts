@@ -281,6 +281,13 @@ export class DatabaseStorage implements IStorage {
         .where(eq(cmsProjects.nextProjectImageUrl, url))
         .limit(1);
       if (nextImgRef) return true;
+
+      const [featuredImgRef] = await db
+        .select({ id: cmsProjects.id })
+        .from(cmsProjects)
+        .where(eq(cmsProjects.featuredImageUrl, url))
+        .limit(1);
+      if (featuredImgRef) return true;
     }
 
     // Check payload JSON in content blocks for the media ID or URL.

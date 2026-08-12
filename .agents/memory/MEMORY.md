@@ -1,1 +1,2 @@
-- [CMS image storage model](cms-image-storage-model.md) — projects store image URLs directly in columns; isMediaReferenced must check all three URL columns plus block payloads.
+- [CMS image storage model](cms-image-storage-model.md) — projects store image URLs directly in columns; isMediaReferenced must check all four URL columns (hero, next, featured) plus block payloads.
+- [Featured image fields](featured-image-fields.md) — four nullable columns added to cms_projects for focal-point crop; zoom stored as real (float), not numeric string.

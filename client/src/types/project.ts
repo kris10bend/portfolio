@@ -53,6 +53,12 @@ export type ProjectData = {
   caseStudyLabel: string;
   title: string;
   heroImage: ProjectImageAsset;
+  /**
+   * Optional featured image shown prominently on homepage cards and at the top
+   * of the case study page, with focal-point crop applied.
+   * Falls back to heroImage when absent.
+   */
+  featuredImage?: ProjectImageAsset;
   metadata: {
     scope?: string;
     role?: string;

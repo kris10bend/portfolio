@@ -12,6 +12,11 @@ interface ProjectCard {
   heroImageSrc: string;
   heroImageAlt: string;
   cardOverlay: 'in_progress' | 'confidential' | null;
+  /** Optional featured image (falls back to heroImageSrc when absent) */
+  featuredImageUrl?: string;
+  featuredImageAlt?: string;
+  featuredImageObjectPosition?: string;
+  featuredImageZoom?: number;
 }
 
 type ImageHeight = "large" | "small";
@@ -68,8 +73,17 @@ const ProjectCardContent = ({
       >
         <img
           className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
-          alt={card.heroImageAlt}
-          src={card.heroImageSrc}
+          alt={card.featuredImageAlt || card.heroImageAlt}
+          src={card.featuredImageUrl || card.heroImageSrc}
+          style={{
+            objectPosition: card.featuredImageObjectPosition || "50% 50%",
+            ...(card.featuredImageZoom && card.featuredImageZoom !== 1
+              ? {
+                  transform: `scale(${card.featuredImageZoom})`,
+                  transformOrigin: card.featuredImageObjectPosition || "50% 50%",
+                }
+              : {}),
+          }}
         />
         {cardOverlay === 'in_progress' && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100">

@@ -8,6 +8,7 @@ import {
   json,
   pgEnum,
   timestamp,
+  real,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -62,6 +63,10 @@ export const cmsProjects = pgTable("cms_projects", {
   nextProjectSlug: text("next_project_slug"),
   nextProjectImageUrl: text("next_project_image_url"),
   cardOverlay: text("card_overlay"),
+  featuredImageUrl: text("featured_image_url"),
+  featuredImageAlt: text("featured_image_alt"),
+  featuredImageObjectPosition: text("featured_image_object_position"),
+  featuredImageZoom: real("featured_image_zoom"),
   archivedAt: timestamp("archived_at"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),

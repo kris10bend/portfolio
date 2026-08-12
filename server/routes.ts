@@ -259,6 +259,10 @@ export async function registerRoutes(
         heroImageSrc: string;
         heroImageAlt: string;
         cardOverlay: 'in_progress' | 'confidential' | null;
+        featuredImageUrl?: string;
+        featuredImageAlt?: string;
+        featuredImageObjectPosition?: string;
+        featuredImageZoom?: number;
       };
 
       // Build homepage card entries from DB records, recording their target slot
@@ -270,9 +274,13 @@ export async function registerRoutes(
             slug: p.slug,
             title: p.title.replace(/\n/g, " "),
             excerpt: p.metaDescription ?? ((p.description as string[] | null)?.[0] ?? ""),
-            heroImageSrc: p.heroImageUrl ?? "",
-            heroImageAlt: p.heroImageAlt ?? "",
+            heroImageSrc: p.featuredImageUrl ?? p.heroImageUrl ?? "",
+            heroImageAlt: p.featuredImageAlt ?? p.heroImageAlt ?? "",
             cardOverlay: (p.cardOverlay as 'in_progress' | 'confidential' | null) ?? null,
+            ...(p.featuredImageUrl ? { featuredImageUrl: p.featuredImageUrl } : {}),
+            ...(p.featuredImageAlt ? { featuredImageAlt: p.featuredImageAlt } : {}),
+            ...(p.featuredImageObjectPosition ? { featuredImageObjectPosition: p.featuredImageObjectPosition } : {}),
+            ...(p.featuredImageZoom !== null && p.featuredImageZoom !== undefined ? { featuredImageZoom: p.featuredImageZoom } : {}),
           },
         }));
       // DB projects without a homepageOrder are appended at the end
@@ -282,9 +290,13 @@ export async function registerRoutes(
           slug: p.slug,
           title: p.title.replace(/\n/g, " "),
           excerpt: p.metaDescription ?? ((p.description as string[] | null)?.[0] ?? ""),
-          heroImageSrc: p.heroImageUrl ?? "",
-          heroImageAlt: p.heroImageAlt ?? "",
+          heroImageSrc: p.featuredImageUrl ?? p.heroImageUrl ?? "",
+          heroImageAlt: p.featuredImageAlt ?? p.heroImageAlt ?? "",
           cardOverlay: (p.cardOverlay as 'in_progress' | 'confidential' | null) ?? null,
+          ...(p.featuredImageUrl ? { featuredImageUrl: p.featuredImageUrl } : {}),
+          ...(p.featuredImageAlt ? { featuredImageAlt: p.featuredImageAlt } : {}),
+          ...(p.featuredImageObjectPosition ? { featuredImageObjectPosition: p.featuredImageObjectPosition } : {}),
+          ...(p.featuredImageZoom !== null && p.featuredImageZoom !== undefined ? { featuredImageZoom: p.featuredImageZoom } : {}),
         }));
 
       // Static cards whose slugs have NO DB record at all
@@ -483,6 +495,20 @@ export async function registerRoutes(
           src: dbProject.heroImageUrl ?? "",
           alt: dbProject.heroImageAlt ?? "",
         },
+        ...(dbProject.featuredImageUrl
+          ? {
+              featuredImage: {
+                src: dbProject.featuredImageUrl,
+                alt: dbProject.featuredImageAlt ?? "",
+                ...(dbProject.featuredImageObjectPosition
+                  ? { objectPosition: dbProject.featuredImageObjectPosition }
+                  : {}),
+                ...(dbProject.featuredImageZoom !== null && dbProject.featuredImageZoom !== undefined
+                  ? { zoom: dbProject.featuredImageZoom }
+                  : {}),
+              },
+            }
+          : {}),
         metadata: {
           client: metadata.client ?? "",
           year: metadata.year ?? "",
@@ -695,6 +721,10 @@ export async function registerRoutes(
     heroImageId: z.string().nullable().optional(),
     heroImageUrl: z.string().max(2000).nullable().optional(),
     heroImageAlt: z.string().max(500).nullable().optional(),
+    featuredImageUrl: z.string().max(2000).nullable().optional(),
+    featuredImageAlt: z.string().max(500).nullable().optional(),
+    featuredImageObjectPosition: z.string().max(100).nullable().optional(),
+    featuredImageZoom: z.number().min(0.1).max(10).nullable().optional(),
     metadata: z.object({
       client: z.string().max(500),
       year: z.string().max(100),
