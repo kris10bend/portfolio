@@ -35,6 +35,7 @@ const ALLOWED_MIME_TO_EXT: Record<string, string> = {
   "image/webp": ".webp",
   "image/gif": ".gif",
   "video/mp4": ".mp4",
+  "video/quicktime": ".mp4", // macOS exports MP4 with this MIME type
   "video/webm": ".webm",
 };
 

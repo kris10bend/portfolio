@@ -150,12 +150,12 @@ const VideoRow = ({
   captionVisible?: boolean;
 }): JSX.Element => (
   <div className="flex flex-col gap-2 w-full">
-    <div className="overflow-hidden rounded-[4px] w-full">
+    <div className="overflow-hidden rounded-[4px] w-full h-[280px] sm:h-[400px] lg:h-[560px]">
       <video
         src={src}
         controls
         playsInline
-        className="w-full"
+        className="w-full h-full object-cover"
         style={{ display: "block" }}
       >
         Your browser does not support HTML5 video.
