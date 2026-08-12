@@ -1002,8 +1002,29 @@ function AdminEditProjectContent({ user }: { user: string }) {
   const [state, setState] = useState<EditorState | null>(null);
   const [initialized, setInitialized] = useState(false);
 
+  // ── Auto-save state ────────────────────────────────────────────────────────
+  // `hydrating` is set to true whenever state is replaced from server data so
+  // the debounce watcher doesn't treat those programmatic updates as user edits.
+  const hydrating = useRef(false);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSaveClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // Monotonic counter incremented for every genuine user edit.
+  const userRevRef = useRef(0);
+  // The revision that was successfully persisted by the most-recent save.
+  const savedRevRef = useRef(0);
+  // Always holds the latest editor state so mutation callbacks can read it without
+  // closing over a stale render.
+  const latestStateRef = useRef<EditorState | null>(null);
+  // Serialization: both auto-save and manual saves await this before sending,
+  // guaranteeing requests reach the server in chronological order.
+  const lastSavePromiseRef = useRef<Promise<unknown>>(Promise.resolve());
+  // True while an auto-save fetch is actually in flight (not just debounce-pending).
+  const isAutoSaveInFlightRef = useRef(false);
+
   useEffect(() => {
     if (data && !initialized) {
+      hydrating.current = true;
       setState(serverToEditor(data.project, data.blocks));
       setInitialized(true);
     }
@@ -1122,32 +1143,135 @@ function AdminEditProjectContent({ user }: { user: string }) {
     setDragOverIndex(null);
   };
 
+  // ── Keep latestStateRef always current so mutation callbacks read fresh state ─
+  useEffect(() => {
+    latestStateRef.current = state;
+  }, [state]);
+
+  // ── Shared: schedule a follow-up auto-save after a settled save ────────────
+  // Called from both mutation onSuccess callbacks when there are newer user edits.
+  const scheduleFollowUpAutoSave = useCallback(() => {
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      setAutoSaveStatus("saving");
+      isAutoSaveInFlightRef.current = true;
+      autoSaveMutationRef.current?.();
+    }, 2000);
+  }, []);
+
+  // ── Helper: cancel any pending debounce (but let in-flight save complete) ─
+  // Called before manual saves so we don't start a fresh auto-save after the
+  // manual save has already taken ownership of the latest revision.
+  const cancelAutoSaveDebounce = useCallback(() => {
+    if (autoSaveTimer.current) {
+      clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = null;
+    }
+    // If the debounce timer had fired and set status to "saving" but the fetch
+    // hasn't started yet (it's still awaiting the serialisation promise), reset
+    // the indicator so it doesn't stay stuck on "Saving…".
+    if (!isAutoSaveInFlightRef.current) {
+      setAutoSaveStatus("idle");
+    }
+  }, []);
+
+  // Forward ref so scheduleFollowUpAutoSave can call autoSaveMutation.mutate
+  // without a circular dependency at declaration time.
+  const autoSaveMutationRef = useRef<(() => void) | null>(null);
+
+  // ── Auto-save mutation (draft only, no toast) ──────────────────────────────
+  const autoSaveMutation = useMutation({
+    mutationFn: async () => {
+      // Serialise: wait for any in-flight save (auto or manual) to settle first.
+      // This guarantees our request reaches the server after the previous one,
+      // so a delayed response can never overwrite a newer payload.
+      await lastSavePromiseRef.current.catch(() => {});
+
+      const snap = latestStateRef.current;
+      if (!snap) throw new Error("No state");
+      const revAtSend = userRevRef.current;
+
+      const fetchPromise = fetch(`/api/admin/projects/${id}/full`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editorToPayload(snap)),
+      }).then(async (res) => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error ?? "Auto-save failed");
+        }
+        return { revAtSend };
+      });
+
+      // Update the serialisation promise so the next save awaits this one.
+      lastSavePromiseRef.current = fetchPromise.catch(() => {});
+      return fetchPromise;
+    },
+    onSuccess: ({ revAtSend }) => {
+      isAutoSaveInFlightRef.current = false;
+      savedRevRef.current = revAtSend;
+      setAutoSaveStatus("saved");
+      if (autoSaveClearTimer.current) clearTimeout(autoSaveClearTimer.current);
+      autoSaveClearTimer.current = setTimeout(() => setAutoSaveStatus("idle"), 3000);
+      // If the user made more edits while this request was in flight, save them.
+      if (userRevRef.current > revAtSend) {
+        scheduleFollowUpAutoSave();
+      }
+    },
+    onError: () => {
+      isAutoSaveInFlightRef.current = false;
+      setAutoSaveStatus("error");
+      // Even on failure, if the user made edits while this request was in flight,
+      // those revisions are unsaved — schedule a follow-up auto-save for them.
+      if (userRevRef.current > savedRevRef.current) {
+        scheduleFollowUpAutoSave();
+      }
+    },
+  });
+
+  // Wire up the forward ref once the mutation is defined.
+  autoSaveMutationRef.current = () => autoSaveMutation.mutate();
+
   // ── Save / Publish mutations ───────────────────────────────────────────────
   const saveMutation = useMutation({
     mutationFn: async (publish: boolean) => {
-      if (!state) throw new Error("No state");
+      // Serialise: wait for any in-flight auto-save to settle before sending.
+      await lastSavePromiseRef.current.catch(() => {});
+
+      // Capture the very latest state and revision at the moment we actually send.
+      const snap = latestStateRef.current;
+      if (!snap) throw new Error("No state");
+      const revAtSend = userRevRef.current;
+
       const url = publish
         ? `/api/admin/projects/${id}/publish`
         : `/api/admin/projects/${id}/full`;
       const method = publish ? "POST" : "PUT";
-      const res = await fetch(url, {
+
+      const fetchPromise = fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editorToPayload(state)),
+        body: JSON.stringify(editorToPayload(snap)),
+      }).then(async (res) => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error ?? "Save failed");
+        }
+        return { data: await res.json(), publish, revAtSend };
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? "Save failed");
-      }
-      return res.json();
+
+      lastSavePromiseRef.current = fetchPromise.catch(() => {});
+      return fetchPromise;
     },
-    onSuccess: (data, publish) => {
-      // Sync server state back
-      setState((prev) =>
-        prev
-          ? serverToEditor(data.project, data.blocks)
-          : prev
-      );
+    onSuccess: ({ data: _data, publish, revAtSend }) => {
+      savedRevRef.current = revAtSend;
+      // We deliberately do NOT replace local editor state with the server response
+      // for either draft saves or publish. EditorState has no status field, so
+      // there are no server-derived fields worth syncing back. More importantly,
+      // the user may have made edits while the request was in flight; overwriting
+      // state with the older server snapshot would discard those newer edits.
+      // The follow-up auto-save below captures latestStateRef, which always holds
+      // the newest content.
       queryClient.invalidateQueries({ queryKey: ["/api/admin/projects"] });
       toast({
         title: publish ? "Published!" : "Draft saved",
@@ -1155,6 +1279,11 @@ function AdminEditProjectContent({ user }: { user: string }) {
           ? "The project is now live on the site."
           : "Your changes have been saved as a draft.",
       });
+      // If the user edited while the manual save was in flight, auto-save those
+      // newer edits now that the manual save has settled.
+      if (userRevRef.current > revAtSend) {
+        scheduleFollowUpAutoSave();
+      }
     },
     onError: (err: any) => {
       toast({
@@ -1162,8 +1291,59 @@ function AdminEditProjectContent({ user }: { user: string }) {
         description: err.message ?? "Something went wrong. Please try again.",
         variant: "destructive",
       });
+      // If the user made edits while this manual save was in flight, those
+      // revisions are still unsaved — schedule an auto-save for them now.
+      if (userRevRef.current > savedRevRef.current) {
+        scheduleFollowUpAutoSave();
+      }
     },
   });
+
+  // ── Auto-save debounce effect ──────────────────────────────────────────────
+  // Deps: [state, initialized] only. Mutation isPending is intentionally excluded
+  // so save lifecycle renders never look like user edits to this watcher.
+  useEffect(() => {
+    // Hydration: state was replaced programmatically (initial load or post-publish
+    // sync). Clear the flag and bail — this is not a user edit.
+    if (hydrating.current) {
+      hydrating.current = false;
+      return;
+    }
+    // Not yet initialized or no state — nothing to do.
+    if (!initialized || !state) return;
+
+    // This is a genuine user edit — bump the revision counter.
+    userRevRef.current += 1;
+
+    // If a manual save/publish is in flight, cancel the pending debounce timer.
+    // Manual save uses latestStateRef so it captures this edit; its onSuccess
+    // will schedule a follow-up auto-save if needed.
+    if (saveMutation.isPending) {
+      if (autoSaveTimer.current) {
+        clearTimeout(autoSaveTimer.current);
+        autoSaveTimer.current = null;
+      }
+      return;
+    }
+
+    // If an auto-save fetch is already in flight, don't start a new debounce.
+    // The in-flight save's onSuccess will compare userRevRef with savedRevRef
+    // and schedule a follow-up if this edit remains unsaved.
+    if (isAutoSaveInFlightRef.current) return;
+
+    // Start (or restart) the 2-second debounce timer.
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      isAutoSaveInFlightRef.current = true;
+      setAutoSaveStatus("saving");
+      autoSaveMutation.mutate();
+    }, 2000);
+
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, initialized]);
 
   // ── Render states ──────────────────────────────────────────────────────────
   if (isLoading) {
@@ -1220,11 +1400,27 @@ function AdminEditProjectContent({ user }: { user: string }) {
         >
           Preview <ExternalLink className="w-3 h-3" />
         </a>
+        {/* Auto-save status indicator */}
+        {autoSaveStatus !== "idle" && (
+          <span
+            className={`shrink-0 text-xs transition-opacity ${
+              autoSaveStatus === "saving"
+                ? "text-gray-400"
+                : autoSaveStatus === "saved"
+                ? "text-green-600"
+                : "text-amber-600"
+            }`}
+          >
+            {autoSaveStatus === "saving" && "Saving…"}
+            {autoSaveStatus === "saved" && "Saved ✓"}
+            {autoSaveStatus === "error" && "Auto-save failed"}
+          </span>
+        )}
         <Button
           variant="outline"
           size="sm"
           disabled={isSaving}
-          onClick={() => saveMutation.mutate(false)}
+          onClick={() => { cancelAutoSaveDebounce(); saveMutation.mutate(false); }}
           className="shrink-0"
         >
           {isSaving ? "Saving…" : "Save draft"}
@@ -1232,7 +1428,7 @@ function AdminEditProjectContent({ user }: { user: string }) {
         <Button
           size="sm"
           disabled={isSaving}
-          onClick={() => saveMutation.mutate(true)}
+          onClick={() => { cancelAutoSaveDebounce(); saveMutation.mutate(true); }}
           className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
         >
           {isSaving ? "Publishing…" : "Publish"}
@@ -1481,13 +1677,13 @@ function AdminEditProjectContent({ user }: { user: string }) {
           <Button
             variant="outline"
             disabled={isSaving}
-            onClick={() => saveMutation.mutate(false)}
+            onClick={() => { cancelAutoSaveDebounce(); saveMutation.mutate(false); }}
           >
             {isSaving ? "Saving…" : "Save draft"}
           </Button>
           <Button
             disabled={isSaving}
-            onClick={() => saveMutation.mutate(true)}
+            onClick={() => { cancelAutoSaveDebounce(); saveMutation.mutate(true); }}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             {isSaving ? "Publishing…" : "Publish"}
