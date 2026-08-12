@@ -233,11 +233,19 @@ function ImageSlotEditor({
   label,
   value,
   onChange,
+  aspectRatio = 1.5,
+  cropPreviewLabel,
 }: {
   label: string;
   value: ImageSlot;
   onChange: (v: ImageSlot) => void;
+  /** width ÷ height ratio for the crop preview thumbnail (default 1.5 = 3:2) */
+  aspectRatio?: number;
+  /** Optional suffix appended to "Crop preview" label, e.g. "(full-width)" */
+  cropPreviewLabel?: string;
 }) {
+  const previewWidth = 180;
+  const previewHeight = Math.round(previewWidth / aspectRatio);
   return (
     <div className="space-y-2 border rounded-lg p-3 bg-gray-50">
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
@@ -252,10 +260,12 @@ function ImageSlotEditor({
             onChange={(pos) => onChange({ ...value, objectPosition: pos })}
           />
           <div className="space-y-1">
-            <p className="text-xs text-gray-500">Crop preview</p>
+            <p className="text-xs text-gray-500">
+              Crop preview{cropPreviewLabel ? ` ${cropPreviewLabel}` : ""}
+            </p>
             <div
               className="overflow-hidden rounded border border-gray-200 bg-gray-100"
-              style={{ width: 180, height: 120 }}
+              style={{ width: previewWidth, height: previewHeight }}
             >
               <img
                 src={value.src}
@@ -367,7 +377,13 @@ function FullImageBlockEditor({
   return (
     <div className="space-y-3">
       <p className="text-xs text-gray-500">Layout: Full width</p>
-      <ImageSlotEditor label="Image" value={payload} onChange={onChange} />
+      <ImageSlotEditor
+        label="Image"
+        value={payload}
+        onChange={onChange}
+        aspectRatio={2.3}
+        cropPreviewLabel="(full-width)"
+      />
     </div>
   );
 }
@@ -404,11 +420,15 @@ function SplitImageBlockEditor({
           label="Left image"
           value={payload.left}
           onChange={(v) => onChange({ ...payload, left: v })}
+          aspectRatio={payload.wide === "left" ? 1.52 : 0.96}
+          cropPreviewLabel={payload.wide === "left" ? "(wide)" : "(narrow)"}
         />
         <ImageSlotEditor
           label="Right image"
           value={payload.right}
           onChange={(v) => onChange({ ...payload, right: v })}
+          aspectRatio={payload.wide === "right" ? 1.52 : 0.96}
+          cropPreviewLabel={payload.wide === "right" ? "(wide)" : "(narrow)"}
         />
       </div>
     </div>
