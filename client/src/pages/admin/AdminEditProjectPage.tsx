@@ -103,6 +103,7 @@ interface EditorState {
   quote: string;
   metaDescription: string;
   showOnHomepage: boolean;
+  cardOverlay: 'in_progress' | 'confidential' | null;
   nextProjectSlug: string;
   nextProjectImageUrl: string;
   blocks: EditorBlock[];
@@ -294,6 +295,7 @@ function serverToEditor(project: any, blocks: any[]): EditorState {
     quote: project.quote ?? "",
     metaDescription: project.metaDescription ?? "",
     showOnHomepage: project.showOnHomepage ?? false,
+    cardOverlay: (project.cardOverlay as 'in_progress' | 'confidential' | null) ?? null,
     nextProjectSlug: project.nextProjectSlug ?? "",
     nextProjectImageUrl: project.nextProjectImageUrl ?? "",
     blocks: blocks.map((b: any) => ({
@@ -322,6 +324,7 @@ function editorToPayload(state: EditorState, status?: "draft" | "published") {
     quote: state.quote || null,
     metaDescription: state.metaDescription || null,
     showOnHomepage: state.showOnHomepage,
+    cardOverlay: state.cardOverlay,
     nextProjectSlug: state.nextProjectSlug || null,
     nextProjectImageUrl: state.nextProjectImageUrl || null,
     ...(status ? { status } : {}),
@@ -1526,6 +1529,34 @@ function AdminEditProjectContent({ user }: { user: string }) {
               Show on homepage
             </Label>
           </div>
+
+          <Field label="Homepage card overlay" hint="Controls what visitors see on the homepage card">
+            <Select
+              value={state.cardOverlay ?? "__none__"}
+              onValueChange={(v) =>
+                set({ cardOverlay: v === "__none__" ? null : (v as 'in_progress' | 'confidential') })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="None" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">None</SelectItem>
+                <SelectItem value="in_progress">In progress</SelectItem>
+                <SelectItem value="confidential">Confidential</SelectItem>
+              </SelectContent>
+            </Select>
+            {state.cardOverlay === 'in_progress' && (
+              <p className="text-xs text-gray-500 mt-1">
+                Shows a blue overlay on hover: "Case study in progress — reach out for information." Card is not clickable.
+              </p>
+            )}
+            {state.cardOverlay === 'confidential' && (
+              <p className="text-xs text-gray-500 mt-1">
+                Shows a blue overlay always visible: "Confidential project — reach out for information." Card is not clickable.
+              </p>
+            )}
+          </Field>
         </Section>
 
         {/* ── Section: Hero image ────────────────────────────────────────── */}

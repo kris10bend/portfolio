@@ -11,6 +11,7 @@ interface ProjectCard {
   excerpt: string;
   heroImageSrc: string;
   heroImageAlt: string;
+  cardOverlay: 'in_progress' | 'confidential' | null;
 }
 
 type ImageHeight = "large" | "small";
@@ -49,12 +50,12 @@ const ProjectCardContent = ({
   card,
   imageHeight,
   titleSize,
-  showOverlay = false,
+  cardOverlay = null,
 }: {
   card: ProjectCard;
   imageHeight: ImageHeight;
   titleSize: TitleSize;
-  showOverlay?: boolean;
+  cardOverlay?: 'in_progress' | 'confidential' | null;
 }): JSX.Element => {
   const isLarge = imageHeight === "large";
 
@@ -70,10 +71,17 @@ const ProjectCardContent = ({
           alt={card.heroImageAlt}
           src={card.heroImageSrc}
         />
-        {showOverlay && (
+        {cardOverlay === 'in_progress' && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
             <p className="max-w-[260px] text-center text-[13px] font-normal leading-[1.6] text-white [font-family:'Geist',Helvetica] tracking-[0.01em]">
-              Case study in progress, reach out for information.
+              Case study in progress — reach out for information.
+            </p>
+          </div>
+        )}
+        {cardOverlay === 'confidential' && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#002fa7]/75">
+            <p className="max-w-[260px] text-center text-[13px] font-normal leading-[1.6] text-white [font-family:'Geist',Helvetica] tracking-[0.01em]">
+              Confidential project — reach out for information.
             </p>
           </div>
         )}
@@ -100,12 +108,12 @@ const ProjectCard = ({
   card,
   index,
   className = "",
-  showOverlay = false,
+  cardOverlay = null,
 }: {
   card: ProjectCard;
   index: number;
   className?: string;
-  showOverlay?: boolean;
+  cardOverlay?: 'in_progress' | 'confidential' | null;
 }): JSX.Element => {
   const { imageHeight, titleSize } = slotSizes(index);
 
@@ -115,10 +123,18 @@ const ProjectCard = ({
         card={card}
         imageHeight={imageHeight}
         titleSize={titleSize}
-        showOverlay={showOverlay}
+        cardOverlay={cardOverlay}
       />
     </Card>
   );
+
+  if (cardOverlay !== null) {
+    return (
+      <div className="cursor-default">
+        {inner}
+      </div>
+    );
+  }
 
   return (
     <Link href={`/work/${card.slug}`} className="block">
@@ -162,27 +178,27 @@ export const SelectedProjectsSection = (): JSX.Element => {
           </p>
         </header>
 
-        {featured && <ProjectCard card={featured} index={0} />}
+        {featured && <ProjectCard card={featured} index={0} cardOverlay={featured.cardOverlay} />}
 
         {firstPair.length > 0 && (
           <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,760fr)_minmax(0,480fr)]">
             {firstPair.map((card, i) => (
-              <ProjectCard key={card.slug} card={card} index={1 + i} />
+              <ProjectCard key={card.slug} card={card} index={1 + i} cardOverlay={card.cardOverlay} />
             ))}
           </div>
         )}
 
-        {solo && <ProjectCard card={solo} index={3} className="pt-10" />}
+        {solo && <ProjectCard card={solo} index={3} className="pt-10" cardOverlay={solo.cardOverlay} />}
 
         {secondPair.length > 0 && (
           <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,480fr)_minmax(0,760fr)]">
             {secondPair.map((card, i) => (
-              <ProjectCard key={card.slug} card={card} index={4 + i} />
+              <ProjectCard key={card.slug} card={card} index={4 + i} cardOverlay={card.cardOverlay} />
             ))}
           </div>
         )}
 
-        {finalSolo && <ProjectCard card={finalSolo} index={6} className="pt-10" />}
+        {finalSolo && <ProjectCard card={finalSolo} index={6} className="pt-10" cardOverlay={finalSolo.cardOverlay} />}
       </div>
     </section>
   );

@@ -258,6 +258,7 @@ export async function registerRoutes(
         excerpt: string;
         heroImageSrc: string;
         heroImageAlt: string;
+        cardOverlay: 'in_progress' | 'confidential' | null;
       };
 
       // Build homepage card entries from DB records, recording their target slot
@@ -271,6 +272,7 @@ export async function registerRoutes(
             excerpt: p.metaDescription ?? ((p.description as string[] | null)?.[0] ?? ""),
             heroImageSrc: p.heroImageUrl ?? "",
             heroImageAlt: p.heroImageAlt ?? "",
+            cardOverlay: (p.cardOverlay as 'in_progress' | 'confidential' | null) ?? null,
           },
         }));
       // DB projects without a homepageOrder are appended at the end
@@ -282,6 +284,7 @@ export async function registerRoutes(
           excerpt: p.metaDescription ?? ((p.description as string[] | null)?.[0] ?? ""),
           heroImageSrc: p.heroImageUrl ?? "",
           heroImageAlt: p.heroImageAlt ?? "",
+          cardOverlay: (p.cardOverlay as 'in_progress' | 'confidential' | null) ?? null,
         }));
 
       // Static cards whose slugs have NO DB record at all
@@ -293,6 +296,7 @@ export async function registerRoutes(
           excerpt: sp.metaDescription ?? sp.description[0] ?? "",
           heroImageSrc: sp.heroImage.src,
           heroImageAlt: sp.heroImage.alt,
+          cardOverlay: null,
         }));
 
       // ── Positional interleave ─────────────────────────────────────────────
@@ -589,6 +593,7 @@ export async function registerRoutes(
     showOnHomepage: z.boolean().optional(),
     metaDescription: z.string().max(500).nullable().optional(),
     nextProjectSlug: z.string().max(500).nullable().optional(),
+    cardOverlay: z.enum(["in_progress", "confidential"]).nullable().optional(),
   });
 
   app.put("/api/admin/projects/:id", requireAdmin, async (req: Request, res: Response) => {
@@ -702,6 +707,7 @@ export async function registerRoutes(
     showOnHomepage: z.boolean().optional(),
     nextProjectSlug: z.string().max(500).nullable().optional(),
     nextProjectImageUrl: z.string().max(2000).nullable().optional(),
+    cardOverlay: z.enum(["in_progress", "confidential"]).nullable().optional(),
     /**
      * Always required for full-replacement endpoints. The editor sends the complete
      * block list every save. Pass [] to intentionally clear all blocks.
