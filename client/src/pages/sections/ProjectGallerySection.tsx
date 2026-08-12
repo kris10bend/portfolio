@@ -92,6 +92,44 @@ const SplitRow = ({
 };
 
 /**
+ * Full-width video row — responsive HTML5 video with controls.
+ * Renders the supplied src as a native <video> element; shows a caption
+ * below when captionVisible is true. Falls back to a plain message if the
+ * browser cannot play the format.
+ */
+const VideoRow = ({
+  src,
+  caption,
+  captionVisible,
+}: {
+  src: string;
+  caption?: string;
+  captionVisible?: boolean;
+}): JSX.Element => (
+  <div className="flex flex-col gap-2 w-full">
+    <div className="overflow-hidden rounded-[4px] w-full">
+      <video
+        src={src}
+        controls
+        playsInline
+        className="w-full"
+        style={{ display: "block" }}
+      >
+        Your browser does not support HTML5 video.
+      </video>
+    </div>
+    {captionVisible && caption && (
+      <p
+        className="text-sm text-gray-500 leading-snug"
+        style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
+      >
+        {caption}
+      </p>
+    )}
+  </div>
+);
+
+/**
  * Inline text rows — narrative paragraphs that an editor inserted between
  * image rows through the CMS text block. Styled to match the body copy in
  * ProjectNarrativeSection so prose sits comfortably alongside photography.
@@ -132,6 +170,16 @@ export const ProjectGallerySection = ({
         }
         if (block.type === "text") {
           return <TextRow key={i} paragraphs={block.paragraphs} />;
+        }
+        if (block.type === "video") {
+          return (
+            <VideoRow
+              key={i}
+              src={block.src}
+              caption={block.caption}
+              captionVisible={block.captionVisible}
+            />
+          );
         }
         return (
           <SplitRow

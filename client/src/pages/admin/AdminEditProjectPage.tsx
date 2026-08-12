@@ -36,11 +36,14 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
+  Upload,
+  Library,
 } from "lucide-react";
+import { MediaLibrary } from "./MediaLibrary";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type BlockType = "text" | "full-image" | "split-image";
+type BlockType = "text" | "full-image" | "split-image" | "video";
 
 interface ImageSlot {
   src: string;
@@ -63,7 +66,14 @@ interface SplitImagePayload {
   wide: "left" | "right";
 }
 
-type BlockPayload = TextBlockPayload | FullImagePayload | SplitImagePayload;
+interface VideoBlockPayload {
+  src: string;
+  alt: string;
+  caption: string;
+  captionVisible: boolean;
+}
+
+type BlockPayload = TextBlockPayload | FullImagePayload | SplitImagePayload | VideoBlockPayload;
 
 interface EditorBlock {
   /** Stable client-side ID for React keys and DnD */
@@ -150,6 +160,7 @@ function newBlock(type: BlockType): EditorBlock {
   const _key = crypto.randomUUID();
   if (type === "text") return { _key, type, payload: { paragraphs: [""] } };
   if (type === "full-image") return { _key, type, payload: emptySlot() };
+  if (type === "video") return { _key, type, payload: { src: "", alt: "", caption: "", captionVisible: false } };
   return {
     _key,
     type: "split-image",
@@ -160,12 +171,14 @@ function newBlock(type: BlockType): EditorBlock {
 function blockLabel(type: BlockType) {
   if (type === "text") return "Text";
   if (type === "full-image") return "Full image";
+  if (type === "video") return "Video";
   return "Split image pair";
 }
 
 function blockBadgeColor(type: BlockType) {
   if (type === "text") return "secondary";
   if (type === "full-image") return "outline";
+  if (type === "video") return "outline";
   return "outline";
 }
 
@@ -435,6 +448,155 @@ function SplitImageBlockEditor({
   );
 }
 
+// ─── Video block editor ───────────────────────────────────────────────────────
+
+function VideoBlockEditor({
+  payload,
+  onChange,
+}: {
+  payload: VideoBlockPayload;
+  onChange: (p: VideoBlockPayload) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setUploadError(null);
+      setUploading(true);
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        const res = await fetch("/api/admin/media/upload", {
+          method: "POST",
+          body: form,
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error ?? "Upload failed");
+        }
+        const media = await res.json();
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/media"] });
+        onChange({ ...payload, src: media.url });
+      } catch (err: any) {
+        setUploadError(err.message ?? "Upload failed");
+      } finally {
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    },
+    [queryClient, payload, onChange]
+  );
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-gray-500">Layout: Video</p>
+      <div className="space-y-2 border rounded-lg p-3 bg-gray-50">
+        {/* Current video preview */}
+        {payload.src ? (
+          <div className="relative w-full max-w-sm rounded-lg overflow-hidden border bg-black">
+            <video
+              src={payload.src}
+              controls
+              muted
+              className="w-full max-h-48"
+            />
+          </div>
+        ) : (
+          <div className="flex items-center justify-center w-full max-w-sm h-32 rounded-lg border-2 border-dashed bg-muted text-muted-foreground">
+            <div className="flex flex-col items-center gap-1 text-sm">
+              <span className="text-2xl opacity-40">▶</span>
+              <span>No video selected</span>
+            </div>
+          </div>
+        )}
+
+        {uploadError && (
+          <p className="text-xs text-red-500">{uploadError}</p>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            {uploading ? "Uploading…" : "Upload video"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setLibraryOpen(true)}
+          >
+            <Library className="w-4 h-4 mr-2" />
+            Choose from library
+          </Button>
+        </div>
+
+        {/* Hidden file input — video only */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="video/mp4,video/webm"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
+        {/* Media library (filtered selection — user should only pick videos) */}
+        <MediaLibrary
+          open={libraryOpen}
+          onOpenChange={setLibraryOpen}
+          onSelect={(media) => {
+            onChange({ ...payload, src: media.url });
+            setLibraryOpen(false);
+          }}
+          selectedUrl={payload.src || undefined}
+        />
+
+        {/* Optional alt/caption fields */}
+        <div>
+          <Label className="text-xs">Alt text</Label>
+          <Input
+            value={payload.alt}
+            onChange={(e) => onChange({ ...payload, alt: e.target.value })}
+            placeholder="Describe the video for screen readers"
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <Label className="text-xs">Caption</Label>
+          <Input
+            value={payload.caption}
+            onChange={(e) => onChange({ ...payload, caption: e.target.value })}
+            placeholder="Optional caption text"
+            className="mt-1"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            id="video-caption-visible"
+            checked={payload.captionVisible}
+            onCheckedChange={(checked) => onChange({ ...payload, captionVisible: checked })}
+          />
+          <Label htmlFor="video-caption-visible" className="text-xs cursor-pointer">
+            Show caption on page
+          </Label>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Block row ────────────────────────────────────────────────────────────────
 
 function BlockRow({
@@ -475,6 +637,10 @@ function BlockRow({
     if (block.type === "full-image") {
       const src = (block.payload as FullImagePayload).src;
       return src ? src.split("/").pop() : "(no image)";
+    }
+    if (block.type === "video") {
+      const src = (block.payload as VideoBlockPayload).src;
+      return src ? src.split("/").pop() : "(no video)";
     }
     const sp = block.payload as SplitImagePayload;
     const l = sp.left?.src?.split("/").pop() ?? "(none)";
@@ -570,6 +736,12 @@ function BlockRow({
             {block.type === "split-image" && (
               <SplitImageBlockEditor
                 payload={block.payload as SplitImagePayload}
+                onChange={onUpdate}
+              />
+            )}
+            {block.type === "video" && (
+              <VideoBlockEditor
+                payload={block.payload as VideoBlockPayload}
                 onChange={onUpdate}
               />
             )}
@@ -674,6 +846,14 @@ function AddBlockRow({ onAdd }: { onAdd: (type: BlockType) => void }) {
             >
               <p className="text-sm font-medium text-gray-900">Text block</p>
               <p className="text-xs text-gray-500 mt-0.5">Narrative paragraphs between images</p>
+            </button>
+            <button
+              type="button"
+              className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
+              onClick={() => { onAdd("video"); setMoreOpen(false); }}
+            >
+              <p className="text-sm font-medium text-gray-900">Video</p>
+              <p className="text-xs text-gray-500 mt-0.5">Embed an MP4 or WebM video inline</p>
             </button>
           </div>
         )}

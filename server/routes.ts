@@ -34,6 +34,8 @@ const ALLOWED_MIME_TO_EXT: Record<string, string> = {
   "image/png": ".png",
   "image/webp": ".webp",
   "image/gif": ".gif",
+  "video/mp4": ".mp4",
+  "video/webm": ".webm",
 };
 
 /**
@@ -42,14 +44,14 @@ const ALLOWED_MIME_TO_EXT: Record<string, string> = {
  */
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+  limits: { fileSize: 200 * 1024 * 1024 }, // 200 MB (covers large video files)
   // Coarse pre-check on declared MIME — not trusted for security, but filters
-  // obvious non-image requests early before we buffer the full file.
+  // obvious non-image/video requests early before we buffer the full file.
   fileFilter: (_req, file, cb) => {
     if (Object.keys(ALLOWED_MIME_TO_EXT).includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Only JPEG, PNG, WebP, and GIF images are allowed"));
+      cb(new Error("Only JPEG, PNG, WebP, GIF images and MP4/WebM videos are allowed"));
     }
   },
 });
@@ -201,6 +203,17 @@ export async function registerRoutes(
       return paragraphs.some((para) => para.trim().length > 0)
         ? { type: "text", paragraphs }
         : null;
+    }
+    if (type === "video") {
+      const src = String(p.src ?? "");
+      // Only include the block when a video source URL is present
+      return src ? {
+        type: "video",
+        src,
+        ...(p.alt ? { alt: String(p.alt) } : {}),
+        ...(p.caption ? { caption: String(p.caption) } : {}),
+        ...(p.captionVisible !== undefined ? { captionVisible: Boolean(p.captionVisible) } : {}),
+      } : null;
     }
     return null; // unknown block type — skip silently
   }
@@ -589,7 +602,7 @@ export async function registerRoutes(
 
   // Zod schema for a single content block as sent from the editor
   const contentBlockSchema = z.object({
-    type: z.enum(["text", "full-image", "split-image"]),
+    type: z.enum(["text", "full-image", "split-image", "video"]),
     payload: z.record(z.unknown()),
   });
 
@@ -718,7 +731,7 @@ export async function registerRoutes(
 
       if (!detectedType) {
         return res.status(400).json({
-          error: "File content is not a valid JPEG, PNG, WebP, or GIF image",
+          error: "File content is not a valid JPEG, PNG, WebP, GIF image or MP4/WebM video",
         });
       }
 

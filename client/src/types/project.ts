@@ -35,7 +35,8 @@ export type GalleryBlock =
       /** Which column carries the wider image */
       wide: "left" | "right";
     }
-  | { type: "text"; paragraphs: string[] };
+  | { type: "text"; paragraphs: string[] }
+  | { type: "video"; src: string; alt?: string; caption?: string; captionVisible?: boolean };
 
 export type ProjectData = {
   slug: string;

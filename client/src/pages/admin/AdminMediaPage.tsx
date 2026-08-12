@@ -100,7 +100,7 @@ function AdminMediaContent({ user }: { user: string }) {
         <h1 className="text-xl font-semibold text-gray-900">Media Library</h1>
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400">
-            JPEG, PNG, WebP, GIF · max 20 MB
+            JPEG, PNG, WebP, GIF · MP4, WebM · max 200 MB
           </span>
           <Button
             size="sm"
@@ -108,12 +108,12 @@ function AdminMediaContent({ user }: { user: string }) {
             disabled={uploading}
           >
             <Upload className="w-4 h-4 mr-2" />
-            {uploading ? "Uploading…" : "Upload images"}
+            {uploading ? "Uploading…" : "Upload media"}
           </Button>
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
+            accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
             multiple
             className="hidden"
             onChange={handleFileChange}
@@ -154,7 +154,7 @@ function AdminMediaContent({ user }: { user: string }) {
       ) : media.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-lg p-16 flex flex-col items-center gap-3 text-gray-400">
           <Upload className="w-10 h-10 opacity-30" />
-          <p className="text-sm">No images yet. Click "Upload images" to add your first image.</p>
+          <p className="text-sm">No media yet. Click "Upload media" to add your first file.</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -162,19 +162,28 @@ function AdminMediaContent({ user }: { user: string }) {
             <div key={item.id} className="group relative rounded-lg overflow-hidden border border-gray-200 bg-white">
               {/* Thumbnail */}
               <div className="aspect-square bg-gray-50">
-                <img
-                  src={item.url}
-                  alt={item.originalName}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
+                {item.mimeType.startsWith("video/") ? (
+                  <video
+                    src={item.url}
+                    muted
+                    preload="metadata"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <img
+                    src={item.url}
+                    alt={item.originalName}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                )}
               </div>
 
               {/* Delete button */}
               <button
                 className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white rounded p-1.5 hover:bg-red-600"
                 onClick={() => deleteMutation.mutate(item.id)}
-                title="Delete image"
+                title="Delete media"
               >
                 <Trash2 className="w-3 h-3" />
               </button>

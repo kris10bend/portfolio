@@ -23,6 +23,7 @@ export const contentBlockTypeEnum = pgEnum("content_block_type", [
   "text",
   "full-image",
   "split-image",
+  "video",
 ]);
 
 // ─── users ────────────────────────────────────────────────────────────────────

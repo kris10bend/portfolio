@@ -115,10 +115,10 @@ export function MediaLibrary({ open, onOpenChange, onSelect, selectedUrl }: Medi
             disabled={uploading}
           >
             <Upload className="w-4 h-4 mr-2" />
-            {uploading ? "Uploading…" : "Upload image"}
+            {uploading ? "Uploading…" : "Upload media"}
           </Button>
           <span className="text-xs text-muted-foreground">
-            JPEG, PNG, WebP, GIF · max 20 MB
+            JPEG, PNG, WebP, GIF · MP4, WebM · max 200 MB
           </span>
           {uploadError && (
             <span className="text-xs text-red-500 ml-auto flex items-center gap-1">
@@ -133,7 +133,7 @@ export function MediaLibrary({ open, onOpenChange, onSelect, selectedUrl }: Medi
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
+            accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
             className="hidden"
             onChange={handleFileChange}
           />
@@ -148,7 +148,7 @@ export function MediaLibrary({ open, onOpenChange, onSelect, selectedUrl }: Medi
           ) : media.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-sm gap-2">
               <Upload className="w-8 h-8 opacity-30" />
-              No images yet. Upload one above.
+              No media yet. Upload one above.
             </div>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 p-1">
@@ -166,12 +166,21 @@ export function MediaLibrary({ open, onOpenChange, onSelect, selectedUrl }: Medi
                   >
                     {/* Thumbnail */}
                     <div className="aspect-square bg-muted">
-                      <img
-                        src={item.url}
-                        alt={item.originalName}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
+                      {item.mimeType.startsWith("video/") ? (
+                        <video
+                          src={item.url}
+                          muted
+                          preload="metadata"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <img
+                          src={item.url}
+                          alt={item.originalName}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      )}
                     </div>
 
                     {/* Selected badge */}
