@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useId } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminGuard } from "./AdminGuard";
@@ -315,11 +315,60 @@ function serverToEditor(project: any, blocks: any[]): EditorState {
     metaDescription: project.metaDescription ?? "",
     showOnHomepage: project.showOnHomepage ?? false,
     cardOverlay: (project.cardOverlay as 'in_progress' | 'confidential' | null) ?? null,
-    blocks: blocks.map((b: any) => ({
-      _key: crypto.randomUUID(),
-      type: b.type as BlockType,
-      payload: (b.payload ?? {}) as BlockPayload,
-    })),
+    blocks: blocks.map((b: any) => {
+      const raw = (b.payload ?? {}) as Record<string, unknown>;
+      let payload: BlockPayload;
+      if (b.type === "full-image") {
+        payload = {
+          src: String(raw.src ?? ""),
+          alt: String(raw.alt ?? ""),
+          caption: String(raw.caption ?? ""),
+          captionVisible: Boolean(raw.captionVisible ?? false),
+          objectPosition: raw.objectPosition ? String(raw.objectPosition) : undefined,
+          zoom: raw.zoom !== undefined ? Number(raw.zoom) : undefined,
+        } as FullImagePayload;
+      } else if (b.type === "split-image") {
+        const l = (raw.left ?? {}) as Record<string, unknown>;
+        const r = (raw.right ?? {}) as Record<string, unknown>;
+        payload = {
+          wide: raw.wide === "right" ? "right" : "left",
+          left: {
+            src: String(l.src ?? ""),
+            alt: String(l.alt ?? ""),
+            caption: String(l.caption ?? ""),
+            captionVisible: Boolean(l.captionVisible ?? false),
+            objectPosition: l.objectPosition ? String(l.objectPosition) : undefined,
+            zoom: l.zoom !== undefined ? Number(l.zoom) : undefined,
+          },
+          right: {
+            src: String(r.src ?? ""),
+            alt: String(r.alt ?? ""),
+            caption: String(r.caption ?? ""),
+            captionVisible: Boolean(r.captionVisible ?? false),
+            objectPosition: r.objectPosition ? String(r.objectPosition) : undefined,
+            zoom: r.zoom !== undefined ? Number(r.zoom) : undefined,
+          },
+        } as SplitImagePayload;
+      } else if (b.type === "video") {
+        payload = {
+          src: String(raw.src ?? ""),
+          alt: String(raw.alt ?? ""),
+          caption: String(raw.caption ?? ""),
+          captionVisible: Boolean(raw.captionVisible ?? false),
+        } as VideoBlockPayload;
+      } else {
+        // text block (or any unknown future type) — preserve as-is
+        const paragraphs = raw.paragraphs;
+        payload = {
+          paragraphs: Array.isArray(paragraphs) ? (paragraphs as string[]) : [""],
+        } as TextBlockPayload;
+      }
+      return {
+        _key: crypto.randomUUID(),
+        type: b.type as BlockType,
+        payload,
+      };
+    }),
   };
 }
 
@@ -374,6 +423,7 @@ function ImageSlotEditor({
   /** Optional suffix appended to "Crop preview" label, e.g. "(full-width)" */
   cropPreviewLabel?: string;
 }) {
+  const capVisId = useId();
   const previewWidth = 180;
   const previewHeight = Math.round(previewWidth / aspectRatio);
   return (
@@ -437,11 +487,11 @@ function ImageSlotEditor({
       </div>
       <div className="flex items-center gap-2">
         <Switch
-          id={`cap-vis-${label}`}
+          id={capVisId}
           checked={value.captionVisible}
           onCheckedChange={(checked) => onChange({ ...value, captionVisible: checked })}
         />
-        <Label htmlFor={`cap-vis-${label}`} className="text-xs cursor-pointer">
+        <Label htmlFor={capVisId} className="text-xs cursor-pointer">
           Show caption on page
         </Label>
       </div>
@@ -579,6 +629,7 @@ function VideoBlockEditor({
   payload: VideoBlockPayload;
   onChange: (p: VideoBlockPayload) => void;
 }) {
+  const capVisId = useId();
   const queryClient = useQueryClient();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -706,11 +757,11 @@ function VideoBlockEditor({
         </div>
         <div className="flex items-center gap-2">
           <Switch
-            id="video-caption-visible"
+            id={capVisId}
             checked={payload.captionVisible}
             onCheckedChange={(checked) => onChange({ ...payload, captionVisible: checked })}
           />
-          <Label htmlFor="video-caption-visible" className="text-xs cursor-pointer">
+          <Label htmlFor={capVisId} className="text-xs cursor-pointer">
             Show caption on page
           </Label>
         </div>
