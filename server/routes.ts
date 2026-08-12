@@ -453,48 +453,91 @@ export async function registerRoutes(
         .map((b) => blockToGalleryBlock(b.type, b.payload))
         .filter((g): g is GalleryBlock => g !== null);
 
-      // Resolve nextProject from DB (published only) or static fallback.
-      // Image is always derived from the target project's own hero image —
-      // the separate nextProjectImageUrl column is no longer used.
-      // The section is omitted entirely when the target is not reachable
-      // (draft, archived, or non-existent).
+      // Auto-compute next project from the full navigable homepage sequence.
+      // The sequence mirrors the public homepage order: CMS projects placed at
+      // their homepageOrder slots, static projects filling the gaps — same
+      // interleaving algorithm as GET /api/projects. CMS projects with a
+      // cardOverlay are excluded (they are not publicly reachable). The section
+      // is omitted when the current project is the only entry in the sequence.
       let nextProject: { slug: string; title: string; image: ProjectImageAsset } | undefined;
-      if (dbProject.nextProjectSlug) {
-        const nextSlug = dbProject.nextProjectSlug;
-        const [nextDbProject, nextDbAny] = await Promise.all([
-          storage.getPublishedCmsProjectBySlug(nextSlug),
-          storage.getCmsProjectBySlugAny(nextSlug),
+      {
+        type SeqEntry = { slug: string; title: string; imageSrc: string; imageAlt: string };
+
+        const [homepageProjects, allDbSlugs] = await Promise.all([
+          storage.getPublishedHomepageProjects(),
+          storage.getAllCmsProjectSlugs(),
         ]);
 
-        if (nextDbProject && nextDbProject.showOnHomepage && nextDbProject.cardOverlay == null) {
-          // Target is a published, publicly-visible CMS project — use its hero image
-          nextProject = {
-            slug: nextSlug,
-            title: nextDbProject.title,
-            image: {
-              src: nextDbProject.heroImageUrl ?? "",
-              alt: nextDbProject.heroImageAlt ?? nextDbProject.title,
+        // CMS entries: exclude those with a cardOverlay (not publicly reachable)
+        const visibleCms = homepageProjects.filter((p) => p.cardOverlay == null);
+
+        const cmsOrdered: Array<{ order: number; entry: SeqEntry }> = visibleCms
+          .filter((p) => p.homepageOrder !== null && p.homepageOrder !== undefined)
+          .map((p) => ({
+            order: p.homepageOrder as number,
+            entry: {
+              slug: p.slug,
+              title: p.title,
+              imageSrc: p.heroImageUrl ?? "",
+              imageAlt: p.heroImageAlt ?? p.title,
             },
-          };
-        } else if (!nextDbAny) {
-          // Target is a static project (not in CMS at all) — derive hero image
-          const nextStaticProject = staticProjects.find((p) => p.slug === nextSlug);
-          if (nextStaticProject) {
-            nextProject = {
-              slug: nextSlug,
-              title: nextStaticProject.title,
-              image: {
-                src: nextStaticProject.heroImage.src,
-                alt: nextStaticProject.heroImage.alt,
-                ...(nextStaticProject.heroImage.isPlaceholder
-                  ? { isPlaceholder: true }
-                  : {}),
-              },
-            };
+          }));
+
+        const cmsUnordered: SeqEntry[] = visibleCms
+          .filter((p) => p.homepageOrder === null || p.homepageOrder === undefined)
+          .map((p) => ({
+            slug: p.slug,
+            title: p.title,
+            imageSrc: p.heroImageUrl ?? "",
+            imageAlt: p.heroImageAlt ?? p.title,
+          }));
+
+        // Static entries: slugs with no DB record at all (never have a cardOverlay)
+        const staticEntries: SeqEntry[] = staticProjects
+          .filter((sp) => !allDbSlugs.has(sp.slug))
+          .map((sp) => ({
+            slug: sp.slug,
+            title: sp.title,
+            imageSrc: sp.heroImage.src,
+            imageAlt: sp.heroImage.alt,
+          }));
+
+        // Positional interleave — same algorithm as GET /api/projects
+        const maxSlot = Math.max(
+          0,
+          ...cmsOrdered.map((d) => d.order),
+          cmsOrdered.length + staticEntries.length + cmsUnordered.length
+        );
+        const slots: (SeqEntry | null)[] = new Array(maxSlot + 1).fill(null);
+        for (const { order, entry } of cmsOrdered) {
+          if (order >= 1 && order < slots.length && slots[order] === null) {
+            slots[order] = entry;
+          } else {
+            cmsUnordered.push(entry);
           }
         }
-        // If target is a draft/archived CMS record, nextProject remains
-        // undefined → the section is omitted from the API response.
+
+        const sequence: SeqEntry[] = [];
+        let staticIdx = 0;
+        for (let i = 1; i < slots.length; i++) {
+          if (slots[i] !== null) {
+            sequence.push(slots[i] as SeqEntry);
+          } else if (staticIdx < staticEntries.length) {
+            sequence.push(staticEntries[staticIdx++]);
+          }
+        }
+        while (staticIdx < staticEntries.length) sequence.push(staticEntries[staticIdx++]);
+        sequence.push(...cmsUnordered);
+
+        const currentIndex = sequence.findIndex((e) => e.slug === slug);
+        if (currentIndex !== -1 && sequence.length > 1) {
+          const nextEntry = sequence[(currentIndex + 1) % sequence.length];
+          nextProject = {
+            slug: nextEntry.slug,
+            title: nextEntry.title,
+            image: { src: nextEntry.imageSrc, alt: nextEntry.imageAlt },
+          };
+        }
       }
 
       const metadata = (dbProject.metadata ?? {}) as {
@@ -635,7 +678,6 @@ export async function registerRoutes(
     homepageOrder: z.number().int().nullable().optional(),
     showOnHomepage: z.boolean().optional(),
     metaDescription: z.string().max(500).nullable().optional(),
-    nextProjectSlug: z.string().max(500).nullable().optional(),
     cardOverlay: z.enum(["in_progress", "confidential"]).nullable().optional(),
   });
 
@@ -670,7 +712,6 @@ export async function registerRoutes(
         caseStudyLabel: original.caseStudyLabel,
         quote: original.quote,
         metaDescription: original.metaDescription,
-        nextProjectSlug: original.nextProjectSlug,
         status: "draft",
         showOnHomepage: false,
       });
@@ -755,8 +796,6 @@ export async function registerRoutes(
     quote: z.string().max(5000).nullable().optional(),
     metaDescription: z.string().max(500).nullable().optional(),
     showOnHomepage: z.boolean().optional(),
-    nextProjectSlug: z.string().max(500).nullable().optional(),
-    nextProjectImageUrl: z.string().max(2000).nullable().optional(),
     cardOverlay: z.enum(["in_progress", "confidential"]).nullable().optional(),
     /**
      * Always required for full-replacement endpoints. The editor sends the complete

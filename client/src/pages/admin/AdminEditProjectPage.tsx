@@ -118,8 +118,6 @@ interface EditorState {
   metaDescription: string;
   showOnHomepage: boolean;
   cardOverlay: 'in_progress' | 'confidential' | null;
-  nextProjectSlug: string;
-  nextProjectImageUrl: string;
   blocks: EditorBlock[];
 }
 
@@ -317,8 +315,6 @@ function serverToEditor(project: any, blocks: any[]): EditorState {
     metaDescription: project.metaDescription ?? "",
     showOnHomepage: project.showOnHomepage ?? false,
     cardOverlay: (project.cardOverlay as 'in_progress' | 'confidential' | null) ?? null,
-    nextProjectSlug: project.nextProjectSlug ?? "",
-    nextProjectImageUrl: project.nextProjectImageUrl ?? "",
     blocks: blocks.map((b: any) => ({
       _key: crypto.randomUUID(),
       type: b.type as BlockType,
@@ -353,8 +349,6 @@ function editorToPayload(state: EditorState, status?: "draft" | "published") {
     metaDescription: state.metaDescription || null,
     showOnHomepage: state.showOnHomepage,
     cardOverlay: state.cardOverlay,
-    nextProjectSlug: state.nextProjectSlug || null,
-    nextProjectImageUrl: state.nextProjectImageUrl || null,
     ...(status ? { status } : {}),
     blocks: state.blocks.map((b) => ({
       type: b.type,
@@ -1018,16 +1012,6 @@ function AdminEditProjectContent({ user }: { user: string }) {
       return res.json() as Promise<{ project: any; blocks: any[] }>;
     },
     staleTime: 0,
-  });
-
-  // ── Fetch project list (for next-project dropdown) ─────────────────────────
-  const { data: allProjects } = useQuery<any[]>({
-    queryKey: ["/api/admin/projects"],
-    queryFn: async () => {
-      const res = await fetch("/api/admin/projects");
-      if (!res.ok) return [];
-      return res.json();
-    },
   });
 
   // ── Local editor state ─────────────────────────────────────────────────────
@@ -1744,38 +1728,6 @@ function AdminEditProjectContent({ user }: { user: string }) {
           <div className="mt-3">
             <AddBlockRow onAdd={(type) => addBlock(type)} />
           </div>
-        </Section>
-
-        {/* ── Section: Next project ──────────────────────────────────────── */}
-        <Section title="Next project">
-          <p className="text-xs text-gray-500 mb-3">
-            Shown as a teaser strip at the bottom of this case study.
-          </p>
-          <Field label="Next project">
-            <Select
-              value={state.nextProjectSlug || "__none__"}
-              onValueChange={(v) => set({ nextProjectSlug: v === "__none__" ? "" : v })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a project…" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">— None —</SelectItem>
-                {(allProjects ?? [])
-                  .filter((p: any) => p.id !== id)
-                  .map((p: any) => (
-                    <SelectItem key={p.id} value={p.slug}>
-                      {p.title || p.slug}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          {state.nextProjectSlug && (
-            <p className="mt-3 text-xs text-gray-500">
-              The hero image from the selected project will be used automatically.
-            </p>
-          )}
         </Section>
 
         {/* ── Bottom save bar ────────────────────────────────────────────── */}
