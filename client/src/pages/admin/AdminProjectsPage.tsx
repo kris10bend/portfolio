@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { AdminLayout } from "./AdminLayout";
@@ -166,11 +166,11 @@ function AdminProjectsContent({ user }: { user: string }) {
   const displayProjects = orderedProjects ?? projects;
 
   // Reset local order when server data changes
-  const prevProjects = useRef<CmsProject[]>([]);
-  if (projects !== prevProjects.current && !orderDirty) {
-    prevProjects.current = projects;
-    setOrderedProjects(null);
-  }
+  useEffect(() => {
+    if (!orderDirty) {
+      setOrderedProjects(null);
+    }
+  }, [projects]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Drag handlers ──────────────────────────────────────────────────────────
 
