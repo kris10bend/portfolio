@@ -246,10 +246,31 @@ function ImageSlotEditor({
         onChange={(url) => onChange({ ...value, src: url })}
       />
       {value.src && (
-        <CropAnchorPicker
-          value={value.objectPosition}
-          onChange={(pos) => onChange({ ...value, objectPosition: pos })}
-        />
+        <>
+          <CropAnchorPicker
+            value={value.objectPosition}
+            onChange={(pos) => onChange({ ...value, objectPosition: pos })}
+          />
+          <div className="space-y-1">
+            <p className="text-xs text-gray-500">Crop preview</p>
+            <div
+              className="overflow-hidden rounded border border-gray-200 bg-gray-100"
+              style={{ width: 180, height: 120 }}
+            >
+              <img
+                src={value.src}
+                alt=""
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  objectPosition: value.objectPosition || "center center",
+                  display: "block",
+                }}
+              />
+            </div>
+          </div>
+        </>
       )}
       <div>
         <Label className="text-xs">Alt text</Label>
