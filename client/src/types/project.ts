@@ -8,6 +8,11 @@ export type ProjectImageAsset = {
    * data-src so the owner knows where to drop the real photograph.
    */
   isPlaceholder?: boolean;
+  /**
+   * CSS object-position value controlling the crop anchor (e.g. "center top").
+   * Defaults to "center center" when absent.
+   */
+  objectPosition?: string;
 };
 
 /**

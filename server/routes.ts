@@ -170,7 +170,11 @@ export async function registerRoutes(
     if (type === "full-image") {
       return {
         type: "full",
-        image: { src: String(p.src ?? ""), alt: String(p.alt ?? "") },
+        image: {
+          src: String(p.src ?? ""),
+          alt: String(p.alt ?? ""),
+          ...(p.objectPosition ? { objectPosition: String(p.objectPosition) } : {}),
+        },
       };
     }
     if (type === "split-image") {
@@ -178,8 +182,16 @@ export async function registerRoutes(
       const r = (p.right ?? {}) as Record<string, unknown>;
       return {
         type: "split",
-        left: { src: String(l.src ?? ""), alt: String(l.alt ?? "") },
-        right: { src: String(r.src ?? ""), alt: String(r.alt ?? "") },
+        left: {
+          src: String(l.src ?? ""),
+          alt: String(l.alt ?? ""),
+          ...(l.objectPosition ? { objectPosition: String(l.objectPosition) } : {}),
+        },
+        right: {
+          src: String(r.src ?? ""),
+          alt: String(r.alt ?? ""),
+          ...(r.objectPosition ? { objectPosition: String(r.objectPosition) } : {}),
+        },
         wide: p.wide === "right" ? "right" : "left",
       };
     }

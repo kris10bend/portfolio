@@ -45,6 +45,7 @@ const GalleryImage = ({
           src={image.src}
           alt={image.alt}
           className="h-full w-full object-cover transition-transform duration-700 ease-out hover:scale-[1.02]"
+          style={{ objectPosition: image.objectPosition ?? "center center" }}
           onError={() => setFailed(true)}
         />
       )}

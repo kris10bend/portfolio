@@ -47,6 +47,8 @@ interface ImageSlot {
   alt: string;
   caption: string;
   captionVisible: boolean;
+  /** CSS object-position value, e.g. "center top". Defaults to "center center". */
+  objectPosition?: string;
 }
 
 interface TextBlockPayload {
@@ -95,7 +97,53 @@ interface EditorState {
 }
 
 function emptySlot(): ImageSlot {
-  return { src: "", alt: "", caption: "", captionVisible: false };
+  return { src: "", alt: "", caption: "", captionVisible: false, objectPosition: "center center" };
+}
+
+// ─── Crop anchor picker ───────────────────────────────────────────────────────
+
+const CROP_ROWS = [
+  ["top left",    "top center",    "top right"],
+  ["center left", "center center", "center right"],
+  ["bottom left", "bottom center", "bottom right"],
+] as const;
+
+type CropPosition = (typeof CROP_ROWS)[number][number];
+
+function CropAnchorPicker({
+  value,
+  onChange,
+}: {
+  value?: string;
+  onChange: (v: string) => void;
+}) {
+  const current: string = value || "center center";
+  return (
+    <div className="space-y-1">
+      <p className="text-xs text-gray-500">Crop anchor</p>
+      <div className="flex items-start gap-3">
+        <div
+          className="inline-grid grid-cols-3 gap-0.5 p-1 bg-gray-200 rounded-md"
+          title="Click a cell to set the image focal point"
+        >
+          {CROP_ROWS.flat().map((pos) => (
+            <button
+              key={pos}
+              type="button"
+              title={pos}
+              onClick={() => onChange(pos)}
+              className={`w-5 h-5 rounded-sm transition-colors ${
+                current === pos
+                  ? "bg-blue-600 shadow-inner"
+                  : "bg-white hover:bg-blue-100 border border-gray-200"
+              }`}
+            />
+          ))}
+        </div>
+        <span className="text-[11px] text-gray-400 leading-tight pt-1">{current}</span>
+      </div>
+    </div>
+  );
 }
 
 function newBlock(type: BlockType): EditorBlock {
@@ -197,6 +245,12 @@ function ImageSlotEditor({
         value={value.src || null}
         onChange={(url) => onChange({ ...value, src: url })}
       />
+      {value.src && (
+        <CropAnchorPicker
+          value={value.objectPosition}
+          onChange={(pos) => onChange({ ...value, objectPosition: pos })}
+        />
+      )}
       <div>
         <Label className="text-xs">Alt text</Label>
         <Input
@@ -352,6 +406,9 @@ function BlockRow({
   onMoveDown,
   isDragOver,
   dragHandleProps,
+  canSplitWithNext,
+  onSplitWithNext,
+  onUnsplit,
 }: {
   block: EditorBlock;
   index: number;
@@ -362,6 +419,9 @@ function BlockRow({
   onMoveDown: () => void;
   isDragOver: boolean;
   dragHandleProps: React.HTMLAttributes<HTMLDivElement>;
+  canSplitWithNext?: boolean;
+  onSplitWithNext?: () => void;
+  onUnsplit?: () => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -453,7 +513,7 @@ function BlockRow({
 
         {/* Block editor body */}
         {expanded && (
-          <div className="p-4">
+          <div className="p-4 space-y-4">
             {block.type === "text" && (
               <TextBlockEditor
                 payload={block.payload as TextBlockPayload}
@@ -471,6 +531,29 @@ function BlockRow({
                 payload={block.payload as SplitImagePayload}
                 onChange={onUpdate}
               />
+            )}
+            {/* Layout action row */}
+            {block.type === "full-image" && canSplitWithNext && onSplitWithNext && (
+              <div className="pt-1 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={onSplitWithNext}
+                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  ⟶ Pair with next image as a split row
+                </button>
+              </div>
+            )}
+            {block.type === "split-image" && onUnsplit && (
+              <div className="pt-1 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={onUnsplit}
+                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  ⟵ Separate into two full-width images
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -507,50 +590,56 @@ function BlockRow({
 // ─── Add block button ─────────────────────────────────────────────────────────
 
 function AddBlockRow({ onAdd }: { onAdd: (type: BlockType) => void }) {
-  const [open, setOpen] = useState(false);
-
-  const options: { type: BlockType; label: string; desc: string }[] = [
-    { type: "text", label: "Text block", desc: "One or more narrative paragraphs" },
-    { type: "full-image", label: "Full image", desc: "Single edge-to-edge image with caption" },
-    {
-      type: "split-image",
-      label: "Split image pair",
-      desc: "Two images side by side with wide-side control",
-    },
-  ];
+  const [moreOpen, setMoreOpen] = useState(false);
 
   return (
-    <div className="relative">
+    <div className="flex items-center gap-2">
+      {/* Primary: add a full-width image block immediately, no modal */}
       <Button
         type="button"
         variant="outline"
         size="sm"
-        className="w-full border-dashed"
-        onClick={() => setOpen((v) => !v)}
+        className="flex-1 border-dashed"
+        onClick={() => onAdd("full-image")}
       >
-        <Plus className="w-4 h-4 mr-2" /> Add block
+        <Plus className="w-4 h-4 mr-2" /> Add image
       </Button>
-      {open && (
-        <div className="absolute left-0 right-0 mt-1 z-10 bg-white border border-gray-200 rounded-lg shadow-lg divide-y">
-          {options.map((opt) => (
+
+      {/* Secondary: split pair or text block */}
+      <div className="relative">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="text-gray-500 text-xs"
+          onClick={() => setMoreOpen((v) => !v)}
+        >
+          More ▾
+        </Button>
+        {moreOpen && (
+          <div className="absolute right-0 mt-1 w-56 z-10 bg-white border border-gray-200 rounded-lg shadow-lg divide-y">
             <button
-              key={opt.type}
               type="button"
               className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
-              onClick={() => {
-                onAdd(opt.type);
-                setOpen(false);
-              }}
+              onClick={() => { onAdd("split-image"); setMoreOpen(false); }}
             >
-              <p className="text-sm font-medium text-gray-900">{opt.label}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{opt.desc}</p>
+              <p className="text-sm font-medium text-gray-900">Split image pair</p>
+              <p className="text-xs text-gray-500 mt-0.5">Two images side by side</p>
             </button>
-          ))}
-        </div>
-      )}
-      {open && (
-        <div className="fixed inset-0 z-[9]" onClick={() => setOpen(false)} />
-      )}
+            <button
+              type="button"
+              className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
+              onClick={() => { onAdd("text"); setMoreOpen(false); }}
+            >
+              <p className="text-sm font-medium text-gray-900">Text block</p>
+              <p className="text-xs text-gray-500 mt-0.5">Narrative paragraphs between images</p>
+            </button>
+          </div>
+        )}
+        {moreOpen && (
+          <div className="fixed inset-0 z-[9]" onClick={() => setMoreOpen(false)} />
+        )}
+      </div>
     </div>
   );
 }
@@ -651,6 +740,43 @@ function AdminEditProjectContent({ user }: { user: string }) {
       const blocks = [...prev.blocks];
       const [moved] = blocks.splice(fromIndex, 1);
       blocks.splice(toIndex, 0, moved);
+      return { ...prev, blocks };
+    });
+  }, []);
+
+  /** Merge two adjacent full-image blocks into one split-image block. */
+  const splitBlockWithNext = useCallback((index: number) => {
+    setState((prev) => {
+      if (!prev) return prev;
+      const blocks = [...prev.blocks];
+      const a = blocks[index];
+      const b = blocks[index + 1];
+      if (!a || !b || a.type !== "full-image" || b.type !== "full-image") return prev;
+      const merged: EditorBlock = {
+        _key: crypto.randomUUID(),
+        type: "split-image",
+        payload: {
+          left: a.payload as FullImagePayload,
+          right: b.payload as FullImagePayload,
+          wide: "left",
+        },
+      };
+      blocks.splice(index, 2, merged);
+      return { ...prev, blocks };
+    });
+  }, []);
+
+  /** Break a split-image block into two separate full-image blocks. */
+  const unsplitBlock = useCallback((index: number) => {
+    setState((prev) => {
+      if (!prev) return prev;
+      const blocks = [...prev.blocks];
+      const block = blocks[index];
+      if (!block || block.type !== "split-image") return prev;
+      const sp = block.payload as SplitImagePayload;
+      const leftBlock: EditorBlock = { _key: crypto.randomUUID(), type: "full-image", payload: sp.left };
+      const rightBlock: EditorBlock = { _key: crypto.randomUUID(), type: "full-image", payload: sp.right };
+      blocks.splice(index, 1, leftBlock, rightBlock);
       return { ...prev, blocks };
     });
   }, []);
@@ -980,6 +1106,13 @@ function AdminEditProjectContent({ user }: { user: string }) {
                   onMoveDown={() => moveBlock(index, index + 1)}
                   isDragOver={dragOverIndex === index && dragIndex.current !== index}
                   dragHandleProps={{}}
+                  canSplitWithNext={
+                    block.type === "full-image" &&
+                    index < state.blocks.length - 1 &&
+                    state.blocks[index + 1].type === "full-image"
+                  }
+                  onSplitWithNext={() => splitBlockWithNext(index)}
+                  onUnsplit={() => unsplitBlock(index)}
                 />
               </div>
             ))}
