@@ -185,32 +185,58 @@ function CropPreview({
   containerW,
   containerH,
   crop,
+  imgW,
+  imgH,
+  cardR,
 }: {
   src: string;
   label: string;
   containerW: number;
   containerH: number;
   crop: CropState;
+  /** Full display width of the editor image (= DISPLAY_WIDTH constant). */
+  imgW: number;
+  /** Measured display height of the editor image in px. */
+  imgH: number;
+  /** Card aspect ratio for this slot (e.g. WIDE_CARD_RATIO or NARROW_CARD_RATIO). */
+  cardR: number;
 }) {
-  const op = `${crop.x.toFixed(1)}% ${crop.y.toFixed(1)}%`;
+  // Crop-box size in display space (same geometry as the overlay box).
+  const { bw, bh } = boxDims(imgH, cardR, crop.zoom);
+
+  // Top-left corner of the crop box in display space.
+  const left = (crop.x / 100) * imgW - bw / 2;
+  const top  = (crop.y / 100) * imgH - bh / 2;
+
+  // Scale so the crop box fills the preview container exactly.
+  const sx = containerW / bw;
+  const sy = containerH / bh;
+
+  // Full image size in preview space.
+  const previewW = imgW * sx;
+  const previewH = imgH * sy;
+
+  // Offset so the crop origin aligns with the container's top-left corner.
+  const imgLeft = -left * sx;
+  const imgTop  = -top  * sy;
+
   return (
     <div className="space-y-0.5">
       <p className="text-[11px] text-gray-500">{label}</p>
       <div
-        className="overflow-hidden rounded border border-gray-200 bg-gray-100"
+        className="relative overflow-hidden rounded border border-gray-200 bg-gray-100"
         style={{ width: containerW, height: containerH }}
       >
         <img
           src={src}
           alt=""
           style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            objectPosition: op,
+            position: "absolute",
+            top: imgTop,
+            left: imgLeft,
+            width: previewW,
+            height: previewH,
             display: "block",
-            transform: crop.zoom !== 1 ? `scale(${crop.zoom})` : undefined,
-            transformOrigin: op,
           }}
         />
       </div>
@@ -394,6 +420,9 @@ export function DualCropEditor({
             containerW={216}
             containerH={90}
             crop={wideCrop}
+            imgW={DISPLAY_WIDTH}
+            imgH={imgH}
+            cardR={WIDE_CARD_RATIO}
           />
           <CropPreview
             src={src}
@@ -401,6 +430,9 @@ export function DualCropEditor({
             containerW={120}
             containerH={90}
             crop={squareCrop}
+            imgW={DISPLAY_WIDTH}
+            imgH={imgH}
+            cardR={NARROW_CARD_RATIO}
           />
         </div>
       )}
