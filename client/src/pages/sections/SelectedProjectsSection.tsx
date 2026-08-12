@@ -15,8 +15,13 @@ interface ProjectCard {
   /** Optional featured image (falls back to heroImageSrc when absent) */
   featuredImageUrl?: string;
   featuredImageAlt?: string;
+  /** Wide-crop anchor (used for large card slots) */
   featuredImageObjectPosition?: string;
   featuredImageZoom?: number;
+  /** Square-crop anchor (used for small card slots) */
+  featuredSquareCropX?: number | null;
+  featuredSquareCropY?: number | null;
+  featuredSquareCropZoom?: number | null;
 }
 
 type ImageHeight = "large" | "small";
@@ -64,6 +69,19 @@ const ProjectCardContent = ({
 }): JSX.Element => {
   const isLarge = imageHeight === "large";
 
+  // Choose crop coordinates based on slot size.
+  // Small slots use the square crop; large slots use the wide crop.
+  const useSquareCrop =
+    !isLarge &&
+    card.featuredSquareCropX != null &&
+    card.featuredSquareCropY != null;
+  const objectPosition = useSquareCrop
+    ? `${(card.featuredSquareCropX as number).toFixed(1)}% ${(card.featuredSquareCropY as number).toFixed(1)}%`
+    : card.featuredImageObjectPosition || "50% 50%";
+  const cropZoom = useSquareCrop
+    ? (card.featuredSquareCropZoom ?? 1)
+    : (card.featuredImageZoom ?? 1);
+
   return (
     <CardContent className="space-y-6 p-0">
       <div
@@ -76,11 +94,11 @@ const ProjectCardContent = ({
           alt={card.featuredImageAlt || card.heroImageAlt}
           src={card.featuredImageUrl || card.heroImageSrc}
           style={{
-            objectPosition: card.featuredImageObjectPosition || "50% 50%",
-            ...(card.featuredImageZoom && card.featuredImageZoom !== 1
+            objectPosition,
+            ...(cropZoom !== 1
               ? {
-                  transform: `scale(${card.featuredImageZoom})`,
-                  transformOrigin: card.featuredImageObjectPosition || "50% 50%",
+                  transform: `scale(${cropZoom})`,
+                  transformOrigin: objectPosition,
                 }
               : {}),
           }}

@@ -20,6 +20,12 @@ interface ImagePickerProps {
   /** Called when the user picks a new image from the library or uploads one. */
   onChange: (url: string) => void;
   label?: string;
+  /**
+   * When true, the static image preview thumbnail is not rendered.
+   * Use this when an external component (e.g. DualCropEditor) already shows
+   * the image so the preview is redundant.
+   */
+  hidePreview?: boolean;
 }
 
 /**
@@ -29,7 +35,7 @@ interface ImagePickerProps {
  *
  * Used wherever an image URL is needed in the case study editor.
  */
-export function ImagePicker({ value, onChange, label }: ImagePickerProps) {
+export function ImagePicker({ value, onChange, label, hidePreview = false }: ImagePickerProps) {
   const queryClient = useQueryClient();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -78,22 +84,24 @@ export function ImagePicker({ value, onChange, label }: ImagePickerProps) {
         <span className="text-sm font-medium text-foreground">{label}</span>
       )}
 
-      {/* Current image preview */}
-      {value ? (
-        <div className="relative w-full max-w-sm rounded-lg overflow-hidden border bg-muted">
-          <img
-            src={value}
-            alt="Selected image"
-            className="w-full object-cover max-h-48"
-          />
-        </div>
-      ) : (
-        <div className="flex items-center justify-center w-full max-w-sm h-32 rounded-lg border-2 border-dashed bg-muted text-muted-foreground">
-          <div className="flex flex-col items-center gap-1 text-sm">
-            <ImageIcon className="w-6 h-6 opacity-40" />
-            <span>No image selected</span>
+      {/* Current image preview — hidden when hidePreview=true */}
+      {!hidePreview && (
+        value ? (
+          <div className="relative w-full max-w-sm rounded-lg overflow-hidden border bg-muted">
+            <img
+              src={value}
+              alt="Selected image"
+              className="w-full object-cover max-h-48"
+            />
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center justify-center w-full max-w-sm h-32 rounded-lg border-2 border-dashed bg-muted text-muted-foreground">
+            <div className="flex flex-col items-center gap-1 text-sm">
+              <ImageIcon className="w-6 h-6 opacity-40" />
+              <span>No image selected</span>
+            </div>
+          </div>
+        )
       )}
 
       {/* Upload error */}

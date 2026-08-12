@@ -263,6 +263,9 @@ export async function registerRoutes(
         featuredImageAlt?: string;
         featuredImageObjectPosition?: string;
         featuredImageZoom?: number;
+        featuredSquareCropX?: number | null;
+        featuredSquareCropY?: number | null;
+        featuredSquareCropZoom?: number | null;
       };
 
       // Build homepage card entries from DB records, recording their target slot
@@ -281,6 +284,9 @@ export async function registerRoutes(
             ...(p.featuredImageAlt ? { featuredImageAlt: p.featuredImageAlt } : {}),
             ...(p.featuredImageObjectPosition ? { featuredImageObjectPosition: p.featuredImageObjectPosition } : {}),
             ...(p.featuredImageZoom !== null && p.featuredImageZoom !== undefined ? { featuredImageZoom: p.featuredImageZoom } : {}),
+            featuredSquareCropX: p.featuredSquareCropX ?? null,
+            featuredSquareCropY: p.featuredSquareCropY ?? null,
+            featuredSquareCropZoom: p.featuredSquareCropZoom ?? null,
           },
         }));
       // DB projects without a homepageOrder are appended at the end
@@ -297,6 +303,9 @@ export async function registerRoutes(
           ...(p.featuredImageAlt ? { featuredImageAlt: p.featuredImageAlt } : {}),
           ...(p.featuredImageObjectPosition ? { featuredImageObjectPosition: p.featuredImageObjectPosition } : {}),
           ...(p.featuredImageZoom !== null && p.featuredImageZoom !== undefined ? { featuredImageZoom: p.featuredImageZoom } : {}),
+          featuredSquareCropX: p.featuredSquareCropX ?? null,
+          featuredSquareCropY: p.featuredSquareCropY ?? null,
+          featuredSquareCropZoom: p.featuredSquareCropZoom ?? null,
         }));
 
       // Static cards whose slugs have NO DB record at all
@@ -725,6 +734,9 @@ export async function registerRoutes(
     featuredImageAlt: z.string().max(500).nullable().optional(),
     featuredImageObjectPosition: z.string().max(100).nullable().optional(),
     featuredImageZoom: z.number().min(0.1).max(10).nullable().optional(),
+    featuredSquareCropX: z.number().min(0).max(100).nullable().optional(),
+    featuredSquareCropY: z.number().min(0).max(100).nullable().optional(),
+    featuredSquareCropZoom: z.number().min(0.1).max(10).nullable().optional(),
     metadata: z.object({
       client: z.string().max(500),
       year: z.string().max(100),

@@ -40,6 +40,8 @@ import {
   Library,
 } from "lucide-react";
 import { MediaLibrary } from "./MediaLibrary";
+import { DualCropEditor } from "./DualCropEditor";
+import type { CropState } from "./DualCropEditor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -100,8 +102,16 @@ interface EditorState {
   heroImageAlt: string;
   featuredImageUrl: string;
   featuredImageAlt: string;
+  /** Wide-crop anchor — repurposes the existing featuredImageObjectPosition column. */
   featuredImageObjectPosition: string;
+  /** Wide-crop zoom — repurposes the existing featuredImageZoom column. */
   featuredImageZoom: number;
+  /** Square-crop center X (0–100 %). */
+  featuredSquareCropX: number;
+  /** Square-crop center Y (0–100 %). */
+  featuredSquareCropY: number;
+  /** Square-crop zoom multiplier. */
+  featuredSquareCropZoom: number;
   metadata: ProjectMeta;
   description: string[];
   quote: string;
@@ -293,6 +303,9 @@ function serverToEditor(project: any, blocks: any[]): EditorState {
     featuredImageAlt: project.featuredImageAlt ?? "",
     featuredImageObjectPosition: project.featuredImageObjectPosition ?? "50.0% 50.0%",
     featuredImageZoom: project.featuredImageZoom ?? 1,
+    featuredSquareCropX: project.featuredSquareCropX ?? 50,
+    featuredSquareCropY: project.featuredSquareCropY ?? 50,
+    featuredSquareCropZoom: project.featuredSquareCropZoom ?? 1,
     metadata: {
       client: meta.client ?? "",
       year: meta.year ?? "",
@@ -326,6 +339,9 @@ function editorToPayload(state: EditorState, status?: "draft" | "published") {
     featuredImageAlt: state.featuredImageAlt || null,
     featuredImageObjectPosition: state.featuredImageUrl ? (state.featuredImageObjectPosition || null) : null,
     featuredImageZoom: state.featuredImageUrl ? (state.featuredImageZoom ?? null) : null,
+    featuredSquareCropX: state.featuredImageUrl ? (state.featuredSquareCropX ?? null) : null,
+    featuredSquareCropY: state.featuredImageUrl ? (state.featuredSquareCropY ?? null) : null,
+    featuredSquareCropZoom: state.featuredImageUrl ? (state.featuredSquareCropZoom ?? null) : null,
     metadata: {
       client: state.metadata.client,
       year: state.metadata.year,
@@ -372,6 +388,7 @@ function ImageSlotEditor({
       <ImagePicker
         value={value.src || null}
         onChange={(url) => onChange({ ...value, src: url })}
+        hidePreview
       />
       {value.src && (
         <>
@@ -1581,43 +1598,35 @@ function AdminEditProjectContent({ user }: { user: string }) {
             value={state.featuredImageUrl || null}
             onChange={(url) => set({ featuredImageUrl: url })}
             label="Featured image"
+            hidePreview={!!state.featuredImageUrl}
           />
           {state.featuredImageUrl && (
-            <>
-              <FocalPointCropper
-                src={state.featuredImageUrl}
-                objectPosition={state.featuredImageObjectPosition}
-                zoom={state.featuredImageZoom}
-                onChange={(pos, z) =>
-                  set({ featuredImageObjectPosition: pos, featuredImageZoom: z })
-                }
-              />
-              <div className="space-y-1">
-                <p className="text-xs text-gray-500">Crop preview (card ~3:2)</p>
-                <div
-                  className="overflow-hidden rounded border border-gray-200 bg-gray-100"
-                  style={{ width: 180, height: 120 }}
-                >
-                  <img
-                    src={state.featuredImageUrl}
-                    alt=""
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      objectPosition: state.featuredImageObjectPosition || "50% 50%",
-                      display: "block",
-                      transform:
-                        (state.featuredImageZoom ?? 1) !== 1
-                          ? `scale(${state.featuredImageZoom})`
-                          : undefined,
-                      transformOrigin:
-                        state.featuredImageObjectPosition || "50% 50%",
-                    }}
-                  />
-                </div>
-              </div>
-            </>
+            <DualCropEditor
+              src={state.featuredImageUrl}
+              wideCrop={{
+                x: parseFocalPoint(state.featuredImageObjectPosition).x,
+                y: parseFocalPoint(state.featuredImageObjectPosition).y,
+                zoom: state.featuredImageZoom,
+              }}
+              squareCrop={{
+                x: state.featuredSquareCropX,
+                y: state.featuredSquareCropY,
+                zoom: state.featuredSquareCropZoom,
+              }}
+              onWideChange={(crop: CropState) =>
+                set({
+                  featuredImageObjectPosition: `${crop.x.toFixed(1)}% ${crop.y.toFixed(1)}%`,
+                  featuredImageZoom: crop.zoom,
+                })
+              }
+              onSquareChange={(crop: CropState) =>
+                set({
+                  featuredSquareCropX: crop.x,
+                  featuredSquareCropY: crop.y,
+                  featuredSquareCropZoom: crop.zoom,
+                })
+              }
+            />
           )}
           <Field label="Alt text">
             <Input
