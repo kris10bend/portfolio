@@ -68,7 +68,17 @@ const GalleryImage = ({
 
 /** Full-width gallery row — single image, 560px tall on desktop. */
 const FullRow = ({ image }: { image: ProjectImageAsset }): JSX.Element => (
-  <GalleryImage image={image} className="h-[280px] w-full sm:h-[400px] lg:h-[560px]" />
+  <div className="flex flex-col gap-2 w-full">
+    <GalleryImage image={image} className="h-[280px] w-full sm:h-[400px] lg:h-[560px]" />
+    {image.captionVisible && image.caption && (
+      <p
+        className="text-sm text-gray-500 leading-snug"
+        style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
+      >
+        {image.caption}
+      </p>
+    )}
+  </div>
 );
 
 /**
@@ -92,14 +102,34 @@ const SplitRow = ({
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:gap-10">
-      <GalleryImage
-        image={left}
-        className={`h-[300px] w-full sm:h-[400px] lg:h-[500px] ${leftBasis}`}
-      />
-      <GalleryImage
-        image={right}
-        className={`h-[300px] w-full sm:h-[400px] lg:h-[500px] ${rightBasis}`}
-      />
+      <div className={`flex flex-col gap-2 ${leftBasis}`}>
+        <GalleryImage
+          image={left}
+          className="h-[300px] w-full sm:h-[400px] lg:h-[500px]"
+        />
+        {left.captionVisible && left.caption && (
+          <p
+            className="text-sm text-gray-500 leading-snug"
+            style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
+          >
+            {left.caption}
+          </p>
+        )}
+      </div>
+      <div className={`flex flex-col gap-2 ${rightBasis}`}>
+        <GalleryImage
+          image={right}
+          className="h-[300px] w-full sm:h-[400px] lg:h-[500px]"
+        />
+        {right.captionVisible && right.caption && (
+          <p
+            className="text-sm text-gray-500 leading-snug"
+            style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
+          >
+            {right.caption}
+          </p>
+        )}
+      </div>
     </div>
   );
 };

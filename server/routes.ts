@@ -177,6 +177,8 @@ export async function registerRoutes(
           alt: String(p.alt ?? ""),
           ...(p.objectPosition ? { objectPosition: String(p.objectPosition) } : {}),
           ...(p.zoom !== undefined ? { zoom: Number(p.zoom) } : {}),
+          ...(p.caption ? { caption: String(p.caption) } : {}),
+          ...(p.captionVisible !== undefined ? { captionVisible: Boolean(p.captionVisible) } : {}),
         },
       };
     }
@@ -190,12 +192,16 @@ export async function registerRoutes(
           alt: String(l.alt ?? ""),
           ...(l.objectPosition ? { objectPosition: String(l.objectPosition) } : {}),
           ...(l.zoom !== undefined ? { zoom: Number(l.zoom) } : {}),
+          ...(l.caption ? { caption: String(l.caption) } : {}),
+          ...(l.captionVisible !== undefined ? { captionVisible: Boolean(l.captionVisible) } : {}),
         },
         right: {
           src: String(r.src ?? ""),
           alt: String(r.alt ?? ""),
           ...(r.objectPosition ? { objectPosition: String(r.objectPosition) } : {}),
           ...(r.zoom !== undefined ? { zoom: Number(r.zoom) } : {}),
+          ...(r.caption ? { caption: String(r.caption) } : {}),
+          ...(r.captionVisible !== undefined ? { captionVisible: Boolean(r.captionVisible) } : {}),
         },
         wide: p.wide === "right" ? "right" : "left",
       };

@@ -18,6 +18,10 @@ export type ProjectImageAsset = {
    * focal point. 1 = no zoom (default). Range 1–3.
    */
   zoom?: number;
+  /** Optional caption text set by the editor in the CMS. */
+  caption?: string;
+  /** When true, the caption is displayed below the image on the public page. */
+  captionVisible?: boolean;
 };
 
 /**
