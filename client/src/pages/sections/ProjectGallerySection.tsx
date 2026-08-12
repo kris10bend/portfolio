@@ -23,6 +23,8 @@ const GalleryImage = ({
   className?: string;
 }): JSX.Element => {
   const [failed, setFailed] = useState(false);
+  const zoom = image.zoom ?? 1;
+  const origin = image.objectPosition ?? "center center";
 
   return (
     <div className={`overflow-hidden rounded-[4px] ${className}`}>
@@ -41,13 +43,24 @@ const GalleryImage = ({
           </p>
         </div>
       ) : (
-        <img
-          src={image.src}
-          alt={image.alt}
-          className="h-full w-full object-cover transition-transform duration-700 ease-out hover:scale-[1.02]"
-          style={{ objectPosition: image.objectPosition ?? "center center" }}
-          onError={() => setFailed(true)}
-        />
+        /* Zoom wrapper — scales the img toward the focal point; the outer
+           overflow-hidden clips the scaled content cleanly. */
+        <div
+          className="h-full w-full"
+          style={
+            zoom !== 1
+              ? { transform: `scale(${zoom})`, transformOrigin: origin }
+              : undefined
+          }
+        >
+          <img
+            src={image.src}
+            alt={image.alt}
+            className="h-full w-full object-cover transition-transform duration-700 ease-out hover:scale-[1.02]"
+            style={{ objectPosition: origin }}
+            onError={() => setFailed(true)}
+          />
+        </div>
       )}
     </div>
   );

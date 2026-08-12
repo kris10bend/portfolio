@@ -176,6 +176,7 @@ export async function registerRoutes(
           src: String(p.src ?? ""),
           alt: String(p.alt ?? ""),
           ...(p.objectPosition ? { objectPosition: String(p.objectPosition) } : {}),
+          ...(p.zoom !== undefined ? { zoom: Number(p.zoom) } : {}),
         },
       };
     }
@@ -188,11 +189,13 @@ export async function registerRoutes(
           src: String(l.src ?? ""),
           alt: String(l.alt ?? ""),
           ...(l.objectPosition ? { objectPosition: String(l.objectPosition) } : {}),
+          ...(l.zoom !== undefined ? { zoom: Number(l.zoom) } : {}),
         },
         right: {
           src: String(r.src ?? ""),
           alt: String(r.alt ?? ""),
           ...(r.objectPosition ? { objectPosition: String(r.objectPosition) } : {}),
+          ...(r.zoom !== undefined ? { zoom: Number(r.zoom) } : {}),
         },
         wide: p.wide === "right" ? "right" : "left",
       };

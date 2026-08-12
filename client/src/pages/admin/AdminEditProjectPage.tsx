@@ -50,8 +50,10 @@ interface ImageSlot {
   alt: string;
   caption: string;
   captionVisible: boolean;
-  /** CSS object-position value, e.g. "center top". Defaults to "center center". */
+  /** CSS object-position value, e.g. "40.0% 30.0%". Defaults to "50% 50%". */
   objectPosition?: string;
+  /** CSS transform scale applied on top of object-fit: cover. Range 1–3, default 1. */
+  zoom?: number;
 }
 
 interface TextBlockPayload {
@@ -107,50 +109,140 @@ interface EditorState {
 }
 
 function emptySlot(): ImageSlot {
-  return { src: "", alt: "", caption: "", captionVisible: false, objectPosition: "center center" };
+  return { src: "", alt: "", caption: "", captionVisible: false, objectPosition: "50.0% 50.0%", zoom: 1 };
 }
 
-// ─── Crop anchor picker ───────────────────────────────────────────────────────
+// ─── Focal-point crop picker ──────────────────────────────────────────────────
 
-const CROP_ROWS = [
-  ["top left",    "top center",    "top right"],
-  ["center left", "center center", "center right"],
-  ["bottom left", "bottom center", "bottom right"],
-] as const;
+/**
+ * Converts a legacy CSS objectPosition keyword string (e.g. "top left",
+ * "center center") into { x, y } percentage numbers, or parses an already-
+ * percentage string like "40.0% 30.0%".  Falls back to 50 / 50.
+ */
+function parseFocalPoint(objectPosition?: string): { x: number; y: number } {
+  const pos = (objectPosition ?? "").trim().toLowerCase();
 
-type CropPosition = (typeof CROP_ROWS)[number][number];
+  const keyMap: Record<string, [number, number]> = {
+    "top":             [50,  0], "bottom":          [50, 100],
+    "left":            [ 0, 50], "right":           [100, 50],
+    "center":          [50, 50],
+    "top left":        [ 0,  0], "top center":      [50,  0], "top right":      [100,  0],
+    "left top":        [ 0,  0], "center top":      [50,  0], "right top":      [100,  0],
+    "center left":     [ 0, 50], "center center":   [50, 50], "center right":   [100, 50],
+    "left center":     [ 0, 50], "right center":    [100, 50],
+    "bottom left":     [ 0, 100], "bottom center":  [50, 100], "bottom right":  [100, 100],
+    "left bottom":     [ 0, 100], "center bottom":  [50, 100], "right bottom":  [100, 100],
+  };
 
-function CropAnchorPicker({
-  value,
+  if (pos in keyMap) {
+    const [x, y] = keyMap[pos];
+    return { x, y };
+  }
+
+  // Try "X% Y%" format
+  const parts = pos.split(/\s+/);
+  const x = parseFloat(parts[0]);
+  const y = parseFloat(parts[1]);
+  if (!isNaN(x) && !isNaN(y)) return { x, y };
+
+  return { x: 50, y: 50 };
+}
+
+/**
+ * Interactive focal-point picker. Renders the source image (280 px wide) with
+ * a draggable crosshair and a zoom slider below.
+ */
+function FocalPointCropper({
+  src,
+  objectPosition,
+  zoom,
   onChange,
 }: {
-  value?: string;
-  onChange: (v: string) => void;
+  src: string;
+  objectPosition?: string;
+  zoom: number;
+  onChange: (objectPosition: string, zoom: number) => void;
 }) {
-  const current: string = value || "center center";
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const { x, y } = parseFocalPoint(objectPosition);
+
+  const readPosition = (e: React.MouseEvent) => {
+    const rect = wrapperRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const px = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+    const py = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+    return { x: px, y: py };
+  };
+
+  const applyPosition = (e: React.MouseEvent) => {
+    const pos = readPosition(e);
+    if (!pos) return;
+    onChange(`${pos.x.toFixed(1)}% ${pos.y.toFixed(1)}%`, zoom);
+  };
+
   return (
-    <div className="space-y-1">
-      <p className="text-xs text-gray-500">Crop anchor</p>
-      <div className="flex items-start gap-3">
+    <div className="space-y-2">
+      <p className="text-xs text-gray-500">Focal point — click or drag to position</p>
+      {/* Image with draggable crosshair */}
+      <div
+        ref={wrapperRef}
+        className="relative rounded border border-gray-200 overflow-hidden select-none bg-gray-100"
+        style={{ width: 280, cursor: "crosshair" }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          isDragging.current = true;
+          applyPosition(e);
+        }}
+        onMouseMove={(e) => { if (isDragging.current) applyPosition(e); }}
+        onMouseUp={() => { isDragging.current = false; }}
+        onMouseLeave={() => { isDragging.current = false; }}
+      >
+        <img src={src} alt="" style={{ width: "100%", display: "block", pointerEvents: "none" }} draggable={false} />
+        {/* Crosshair guide lines */}
         <div
-          className="inline-grid grid-cols-3 gap-0.5 p-1 bg-gray-200 rounded-md"
-          title="Click a cell to set the image focal point"
-        >
-          {CROP_ROWS.flat().map((pos) => (
-            <button
-              key={pos}
-              type="button"
-              title={pos}
-              onClick={() => onChange(pos)}
-              className={`w-5 h-5 rounded-sm transition-colors ${
-                current === pos
-                  ? "bg-blue-600 shadow-inner"
-                  : "bg-white hover:bg-blue-100 border border-gray-200"
-              }`}
-            />
-          ))}
-        </div>
-        <span className="text-[11px] text-gray-400 leading-tight pt-1">{current}</span>
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `
+              linear-gradient(to right,
+                transparent calc(${x}% - 0.5px),
+                rgba(255,255,255,0.65) calc(${x}% - 0.5px),
+                rgba(255,255,255,0.65) calc(${x}% + 0.5px),
+                transparent calc(${x}% + 0.5px)),
+              linear-gradient(to bottom,
+                transparent calc(${y}% - 0.5px),
+                rgba(255,255,255,0.65) calc(${y}% - 0.5px),
+                rgba(255,255,255,0.65) calc(${y}% + 0.5px),
+                transparent calc(${y}% + 0.5px))
+            `,
+          }}
+        />
+        {/* Focal point dot */}
+        <div
+          className="absolute pointer-events-none rounded-full border-2 border-white bg-blue-500/40"
+          style={{
+            width: 18,
+            height: 18,
+            left: `${x}%`,
+            top: `${y}%`,
+            transform: "translate(-50%, -50%)",
+            boxShadow: "0 0 0 1.5px rgba(0,0,0,0.45), 0 1px 4px rgba(0,0,0,0.3)",
+          }}
+        />
+      </div>
+      {/* Zoom slider */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-gray-500 shrink-0 w-8">Zoom</span>
+        <input
+          type="range"
+          min={1}
+          max={3}
+          step={0.05}
+          value={zoom}
+          className="flex-1 h-1.5 accent-blue-600"
+          onChange={(e) => onChange(`${x.toFixed(1)}% ${y.toFixed(1)}%`, parseFloat(e.target.value))}
+        />
+        <span className="text-xs text-gray-400 w-10 text-right shrink-0">{zoom.toFixed(2)}×</span>
       </div>
     </div>
   );
@@ -268,9 +360,11 @@ function ImageSlotEditor({
       />
       {value.src && (
         <>
-          <CropAnchorPicker
-            value={value.objectPosition}
-            onChange={(pos) => onChange({ ...value, objectPosition: pos })}
+          <FocalPointCropper
+            src={value.src}
+            objectPosition={value.objectPosition}
+            zoom={value.zoom ?? 1}
+            onChange={(pos, z) => onChange({ ...value, objectPosition: pos, zoom: z })}
           />
           <div className="space-y-1">
             <p className="text-xs text-gray-500">
@@ -287,8 +381,10 @@ function ImageSlotEditor({
                   width: "100%",
                   height: "100%",
                   objectFit: "cover",
-                  objectPosition: value.objectPosition || "center center",
+                  objectPosition: value.objectPosition || "50% 50%",
                   display: "block",
+                  transform: (value.zoom ?? 1) !== 1 ? `scale(${value.zoom})` : undefined,
+                  transformOrigin: value.objectPosition || "50% 50%",
                 }}
               />
             </div>

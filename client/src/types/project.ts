@@ -13,6 +13,11 @@ export type ProjectImageAsset = {
    * Defaults to "center center" when absent.
    */
   objectPosition?: string;
+  /**
+   * CSS transform scale applied on top of object-fit: cover, centered on the
+   * focal point. 1 = no zoom (default). Range 1–3.
+   */
+  zoom?: number;
 };
 
 /**
