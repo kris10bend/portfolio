@@ -395,8 +395,8 @@ export async function registerRoutes(
             storage.getPublishedCmsProjectBySlug(nextSlug),
             storage.getCmsProjectBySlugAny(nextSlug),
           ]);
-          if (nextDbPublished) {
-            // Target is a published CMS project — use its hero image
+          if (nextDbPublished && nextDbPublished.showOnHomepage && nextDbPublished.cardOverlay == null) {
+            // Target is a published, publicly-visible CMS project — use its hero image
             transformedNextProject = {
               slug: nextSlug,
               title: nextDbPublished.title,
@@ -466,8 +466,8 @@ export async function registerRoutes(
           storage.getCmsProjectBySlugAny(nextSlug),
         ]);
 
-        if (nextDbProject) {
-          // Target is a published CMS project — use its hero image
+        if (nextDbProject && nextDbProject.showOnHomepage && nextDbProject.cardOverlay == null) {
+          // Target is a published, publicly-visible CMS project — use its hero image
           nextProject = {
             slug: nextSlug,
             title: nextDbProject.title,
