@@ -266,4 +266,73 @@ describe("GET /api/projects/:slug — single project", () => {
     const body = (await res.json()) as { slug: string };
     assert.equal(body.slug, "journey-to-net-zero");
   });
+
+  test("published project with showOnHomepage:false returns 404 on the public page", async () => {
+    const testSlug = `test-hidden-page-${Date.now()}`;
+    const p = await createPublishedProject({
+      slug: testSlug,
+      title: "Hidden From Homepage Page",
+      homepageOrder: 99,
+      showOnHomepage: false,
+    });
+
+    const res = await fetch(`${baseUrl}/api/projects/${testSlug}`);
+    assert.equal(res.status, 404, "showOnHomepage:false project must return 404 on public page");
+
+    await db.delete(cmsProjects).where(eq(cmsProjects.id, p.id));
+    createdProjectIds.splice(createdProjectIds.indexOf(p.id), 1);
+  });
+
+  test("published project with card_overlay='in_progress' returns 404 on the public page", async () => {
+    const testSlug = `test-overlay-inprogress-${Date.now()}`;
+    // Create published + visible, then patch the overlay directly
+    const p = await createPublishedProject({
+      slug: testSlug,
+      title: "In Progress Project",
+      homepageOrder: 99,
+      showOnHomepage: true,
+    });
+    await storage.updateCmsProject(p.id, { cardOverlay: "in_progress" });
+
+    const res = await fetch(`${baseUrl}/api/projects/${testSlug}`);
+    assert.equal(res.status, 404, "in_progress overlay project must return 404 on public page");
+
+    await db.delete(cmsProjects).where(eq(cmsProjects.id, p.id));
+    createdProjectIds.splice(createdProjectIds.indexOf(p.id), 1);
+  });
+
+  test("published project with card_overlay='confidential' returns 404 on the public page", async () => {
+    const testSlug = `test-overlay-confidential-${Date.now()}`;
+    const p = await createPublishedProject({
+      slug: testSlug,
+      title: "Confidential Project",
+      homepageOrder: 99,
+      showOnHomepage: true,
+    });
+    await storage.updateCmsProject(p.id, { cardOverlay: "confidential" });
+
+    const res = await fetch(`${baseUrl}/api/projects/${testSlug}`);
+    assert.equal(res.status, 404, "confidential overlay project must return 404 on public page");
+
+    await db.delete(cmsProjects).where(eq(cmsProjects.id, p.id));
+    createdProjectIds.splice(createdProjectIds.indexOf(p.id), 1);
+  });
+
+  test("published project with showOnHomepage:true and no overlay returns 200", async () => {
+    const testSlug = `test-visible-page-${Date.now()}`;
+    const p = await createPublishedProject({
+      slug: testSlug,
+      title: "Visible Project",
+      homepageOrder: 99,
+      showOnHomepage: true,
+    });
+
+    const res = await fetch(`${baseUrl}/api/projects/${testSlug}`);
+    assert.equal(res.status, 200, "Fully visible published project must return 200");
+    const body = (await res.json()) as { slug: string };
+    assert.equal(body.slug, testSlug);
+
+    await db.delete(cmsProjects).where(eq(cmsProjects.id, p.id));
+    createdProjectIds.splice(createdProjectIds.indexOf(p.id), 1);
+  });
 });

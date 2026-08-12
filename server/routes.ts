@@ -438,6 +438,14 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Project not found" });
       }
 
+      // Enforce public visibility: projects hidden from the homepage or with
+      // an overlay (in_progress / confidential) must not be reachable by URL.
+      // Admin/preview routes bypass this check entirely — only this public
+      // endpoint is affected.
+      if (!dbProject.showOnHomepage || dbProject.cardOverlay != null) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
       // ── DB record → ProjectData ───────────────────────────────────────────
       const blocks = await storage.getContentBlocksByProjectId(dbProject.id);
 

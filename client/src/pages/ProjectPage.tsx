@@ -41,6 +41,7 @@ export const ProjectPage = (): JSX.Element => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
+
     if (project) {
       const titleLine = project.title.split("\n")[0];
       document.title = `${titleLine} — Case Study`;
@@ -53,8 +54,28 @@ export const ProjectPage = (): JSX.Element => {
         document.head.appendChild(metaDesc);
       }
       metaDesc.content = project.metaDescription ?? "";
+
+      // Remove any noindex tag that may have been set while navigating to a
+      // hidden project URL — this page is publicly visible and should be indexed.
+      document.querySelector('meta[name="robots"]')?.remove();
+    } else if (!isLoading) {
+      // Project is not found (404 / hidden). Tell crawlers to drop any cached
+      // version so URLs that were indexed before the project was hidden are
+      // removed on the next crawl.
+      let metaRobots = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
+      if (!metaRobots) {
+        metaRobots = document.createElement("meta");
+        metaRobots.name = "robots";
+        document.head.appendChild(metaRobots);
+      }
+      metaRobots.content = "noindex, nofollow";
     }
-  }, [slug, project]);
+
+    return () => {
+      // Clean up on unmount so the tag doesn't bleed into subsequent pages.
+      document.querySelector('meta[name="robots"]')?.remove();
+    };
+  }, [slug, project, isLoading]);
 
   if (isLoading) {
     return (
