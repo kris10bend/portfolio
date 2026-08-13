@@ -3,7 +3,6 @@ import { useParams } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { HeaderNavigationSection } from "./sections/HeaderNavigationSection";
 import { ProjectHeroSection } from "./sections/ProjectHeroSection";
-import { ProjectFeaturedImageSection } from "./sections/ProjectFeaturedImageSection";
 import { ProjectOverviewSection } from "./sections/ProjectOverviewSection";
 import { ProjectNarrativeSection } from "./sections/ProjectNarrativeSection";
 import { ProjectGallerySection } from "./sections/ProjectGallerySection";
@@ -262,11 +261,6 @@ export const ProjectPage = (): JSX.Element => {
 
       {/* Full-bleed hero image */}
       <ProjectHeroSection image={project.heroImage} />
-
-      {/* Featured image with focal-point crop — only shown when set in CMS */}
-      {project.featuredImage && (
-        <ProjectFeaturedImageSection image={project.featuredImage} />
-      )}
 
       {/* Blue panel: title + metadata */}
       <ProjectOverviewSection
