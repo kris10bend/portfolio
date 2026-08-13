@@ -205,7 +205,7 @@ function AdminProjectsContent({ user }: { user: string }) {
 
   const saveOrderMutation = useMutation({
     mutationFn: async (list: CmsProject[]) => {
-      const payload = list.map((p, i) => ({ id: p.id, homepageOrder: i }));
+      const payload = list.map((p, i) => ({ id: p.id, homepageOrder: i + 1 }));
       await adminApiRequest("PUT", "/api/admin/projects/order", payload);
     },
     onSuccess: () => {

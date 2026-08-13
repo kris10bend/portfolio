@@ -78,6 +78,29 @@ app.use((req, res, next) => {
     process.exit(1);
   }
 
+  // One-time data correction: the order-save mutation previously wrote 0-based
+  // indices (0, 1, 2…) but the homepage slot algorithm is 1-based and ignores
+  // any row with homepage_order < 1. If any project still has homepage_order = 0
+  // (the tell-tale sign of old 0-based data), increment ALL ordered rows by 1 so
+  // the full set stays contiguous and aligns with the slot algorithm.
+  // This check makes the block idempotent: once all rows are ≥ 1 it never fires.
+  try {
+    const { db } = await import("./db");
+    const { sql } = await import("drizzle-orm");
+    const zeroRows = await db.execute(
+      sql`SELECT 1 FROM cms_projects WHERE homepage_order = 0 LIMIT 1`
+    );
+    if (zeroRows.rows.length > 0) {
+      await db.execute(
+        sql`UPDATE cms_projects SET homepage_order = homepage_order + 1 WHERE homepage_order IS NOT NULL`
+      );
+      console.log("homepage_order corrected from 0-based to 1-based.");
+    }
+  } catch (err) {
+    // Non-fatal: the app still works; editors can re-save order from the CMS.
+    console.warn("homepage_order correction migration failed (non-fatal):", err);
+  }
+
   // Serve user-uploaded images from the top-level uploads/ directory.
   // This is outside both the source tree and build output so it persists across
   // builds and deployments on Replit's durable filesystem.
