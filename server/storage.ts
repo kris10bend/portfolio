@@ -133,9 +133,19 @@ export class DatabaseStorage implements IStorage {
     id: string,
     updates: Partial<InsertCmsProject>
   ): Promise<CmsProject | undefined> {
+    // Clamp: any non-null homepageOrder below 1 is stored as null.
+    // Mirrors the guard in updateCmsProjectsOrder so no code path can
+    // write a 0 or negative slot to the database.
+    const safeUpdates = { ...updates };
+    if (
+      safeUpdates.homepageOrder != null &&
+      safeUpdates.homepageOrder < 1
+    ) {
+      safeUpdates.homepageOrder = null;
+    }
     const [updated] = await db
       .update(cmsProjects)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...safeUpdates, updatedAt: new Date() })
       .where(eq(cmsProjects.id, id))
       .returning();
     return updated;
@@ -162,9 +172,13 @@ export class DatabaseStorage implements IStorage {
   ): Promise<void> {
     await db.transaction(async (tx) => {
       for (const { id, homepageOrder } of items) {
+        // Clamp: any non-null value below 1 is treated as null (no slot).
+        // This prevents 0 or negative indices from ever reaching the DB.
+        const safeOrder =
+          homepageOrder != null && homepageOrder < 1 ? null : homepageOrder ?? null;
         await tx
           .update(cmsProjects)
-          .set({ homepageOrder: homepageOrder ?? null, updatedAt: new Date() })
+          .set({ homepageOrder: safeOrder, updatedAt: new Date() })
           .where(eq(cmsProjects.id, id));
       }
     });

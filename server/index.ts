@@ -78,58 +78,72 @@ app.use((req, res, next) => {
     process.exit(1);
   }
 
-  // One-time data correction: the order-save mutation previously wrote 0-based
-  // indices (0, 1, 2…) but the homepage slot algorithm is 1-based and ignores
-  // any row with homepage_order < 1. If any project still has homepage_order = 0
-  // (the tell-tale sign of old 0-based data), increment ALL ordered rows by 1 so
-  // the full set stays contiguous and aligns with the slot algorithm.
-  // This check makes the block idempotent: once all rows are ≥ 1 it never fires.
+  // One-time idempotent migration: fix homepage_order values so that:
+  //   (a) any row with homepage_order = 0 or negative is set to NULL
+  //   (b) remaining ordered rows are renumbered contiguously 1, 2, 3…
+  //       with building-bridges forced to slot 1
+  // Completion is recorded in a migrations_log table so this never re-runs.
   try {
     const { db } = await import("./db");
     const { sql } = await import("drizzle-orm");
-    const zeroRows = await db.execute(
-      sql`SELECT 1 FROM cms_projects WHERE homepage_order = 0 LIMIT 1`
+
+    // Ensure the migrations log table exists.
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS migrations_log (
+        name TEXT PRIMARY KEY,
+        ran_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    const already = await db.execute(
+      sql`SELECT 1 FROM migrations_log WHERE name = 'homepage_order_v1' LIMIT 1`
     );
-    if (zeroRows.rows.length > 0) {
+
+    if (already.rows.length === 0) {
+      // Step 1: null-out sub-1 values for all projects EXCEPT building-bridges,
+      // so building-bridges is always included in the upcoming ranking even if
+      // its current value is 0 or negative.
+      await db.execute(sql`
+        UPDATE cms_projects
+        SET homepage_order = NULL
+        WHERE homepage_order IS NOT NULL
+          AND homepage_order < 1
+          AND slug != 'building-bridges'
+      `);
+
+      // Step 2: Renumber contiguously 1, 2, 3…
+      // Include building-bridges unconditionally (even if its order is NULL or
+      // sub-1 after historical corruption) and sort it first.
+      // Other projects are included only when homepage_order IS NOT NULL (≥1
+      // after step 1). Tie-break by created_at for stability.
+      await db.execute(sql`
+        UPDATE cms_projects
+        SET homepage_order = new_order
+        FROM (
+          SELECT id,
+                 ROW_NUMBER() OVER (
+                   ORDER BY
+                     CASE WHEN slug = 'building-bridges' THEN 0 ELSE 1 END,
+                     COALESCE(homepage_order, 0),
+                     created_at
+                 ) AS new_order
+          FROM cms_projects
+          WHERE homepage_order IS NOT NULL
+             OR slug = 'building-bridges'
+        ) ranked
+        WHERE cms_projects.id = ranked.id
+      `);
+
+      // Record completion.
       await db.execute(
-        sql`UPDATE cms_projects SET homepage_order = homepage_order + 1 WHERE homepage_order IS NOT NULL`
+        sql`INSERT INTO migrations_log (name) VALUES ('homepage_order_v1') ON CONFLICT DO NOTHING`
       );
-      console.log("homepage_order corrected from 0-based to 1-based.");
+
+      console.log("homepage_order migration homepage_order_v1 completed.");
     }
   } catch (err) {
     // Non-fatal: the app still works; editors can re-save order from the CMS.
-    console.warn("homepage_order correction migration failed (non-fatal):", err);
-  }
-
-  // Data correction: ensure "building-bridges" is at homepage_order = 1.
-  // If it is NULL or greater than 1, set it to 1 and bump any project
-  // that was previously at slot 1 (to avoid a collision).
-  // Idempotent: only fires when building-bridges is not already at slot 1.
-  try {
-    const { db } = await import("./db");
-    const { sql } = await import("drizzle-orm");
-    const bbRows = await db.execute(
-      sql`SELECT homepage_order FROM cms_projects WHERE slug = 'building-bridges' LIMIT 1`
-    );
-    if (bbRows.rows.length > 0) {
-      const currentOrder = (bbRows.rows[0] as any).homepage_order;
-      if (currentOrder === null || currentOrder !== 1) {
-        // Shift ALL projects that currently occupy slot 1 or higher up by one
-        // to make room for building-bridges at slot 1 without creating collisions.
-        await db.execute(
-          sql`UPDATE cms_projects SET homepage_order = homepage_order + 1 WHERE homepage_order >= 1 AND slug != 'building-bridges'`
-        );
-        // Place building-bridges at slot 1.
-        await db.execute(
-          sql`UPDATE cms_projects SET homepage_order = 1 WHERE slug = 'building-bridges'`
-        );
-        console.log(
-          `homepage_order for building-bridges corrected from ${currentOrder ?? "NULL"} to 1.`
-        );
-      }
-    }
-  } catch (err) {
-    console.warn("building-bridges homepage_order correction failed (non-fatal):", err);
+    console.warn("homepage_order_v1 migration failed (non-fatal):", err);
   }
 
   // Serve user-uploaded images from the top-level uploads/ directory.
