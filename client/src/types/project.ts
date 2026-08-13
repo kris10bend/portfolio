@@ -22,6 +22,13 @@ export type ProjectImageAsset = {
   caption?: string;
   /** When true, the caption is displayed below the image on the public page. */
   captionVisible?: boolean;
+  /**
+   * Media type for this slot. When 'video', the `src` field carries a video URL
+   * and the slot is rendered as an HTML5 <video> element. When absent or 'image'
+   * (the default), the slot is rendered as an image — all other fields apply as
+   * normal. Used in split-image gallery blocks to allow a video beside an image.
+   */
+  mediaType?: 'image' | 'video';
 };
 
 /**

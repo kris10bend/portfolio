@@ -86,6 +86,10 @@ const FullRow = ({ image }: { image: ProjectImageAsset }): JSX.Element => (
  * wide="left"  → 760 : 480 split  (~61 / 39%)
  * wide="right" → 480 : 760 split  (~39 / 61%)
  * On mobile both columns stack vertically (450px each).
+ *
+ * Each slot may carry a `mediaType` of 'image' (default) or 'video'. When a
+ * slot is 'video', its `src` is rendered as an HTML5 <video> element at the
+ * same fixed height as an image slot — no change to column proportions or gaps.
  */
 const SplitRow = ({
   left,
@@ -100,13 +104,32 @@ const SplitRow = ({
   const leftBasis = wide === "left" ? "flex-[760]" : "flex-[480]";
   const rightBasis = wide === "left" ? "flex-[480]" : "flex-[760]";
 
+  const slotClassName = "h-[300px] w-full sm:h-[400px] lg:h-[500px]";
+
+  /** Renders the media element for one slot — image or video. */
+  const renderSlotMedia = (slot: ProjectImageAsset): JSX.Element => {
+    if (slot.mediaType === "video") {
+      return (
+        <div className={`overflow-hidden rounded-[4px] ${slotClassName}`}>
+          <video
+            src={slot.src}
+            controls
+            playsInline
+            className="w-full h-full object-cover"
+            style={{ display: "block" }}
+          >
+            Your browser does not support HTML5 video.
+          </video>
+        </div>
+      );
+    }
+    return <GalleryImage image={slot} className={slotClassName} />;
+  };
+
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:gap-10">
       <div className={`flex flex-col gap-2 ${leftBasis}`}>
-        <GalleryImage
-          image={left}
-          className="h-[300px] w-full sm:h-[400px] lg:h-[500px]"
-        />
+        {renderSlotMedia(left)}
         {left.captionVisible && left.caption && (
           <p
             className="text-xs text-black leading-snug"
@@ -117,10 +140,7 @@ const SplitRow = ({
         )}
       </div>
       <div className={`flex flex-col gap-2 ${rightBasis}`}>
-        <GalleryImage
-          image={right}
-          className="h-[300px] w-full sm:h-[400px] lg:h-[500px]"
-        />
+        {renderSlotMedia(right)}
         {right.captionVisible && right.caption && (
           <p
             className="text-xs text-black leading-snug"

@@ -56,6 +56,11 @@ interface ImageSlot {
   objectPosition?: string;
   /** CSS transform scale applied on top of object-fit: cover. Range 1–3, default 1. */
   zoom?: number;
+  /**
+   * When 'video', src carries a video URL and the slot renders as <video>.
+   * Defaults to 'image' when absent.
+   */
+  mediaType?: 'image' | 'video';
 }
 
 interface TextBlockPayload {
@@ -129,7 +134,7 @@ interface EditorState {
 }
 
 function emptySlot(): ImageSlot {
-  return { src: "", alt: "", caption: "", captionVisible: false, objectPosition: "50.0% 50.0%", zoom: 1 };
+  return { src: "", alt: "", caption: "", captionVisible: false, objectPosition: "50.0% 50.0%", zoom: 1, mediaType: "image" };
 }
 
 // ─── Focal-point crop picker ──────────────────────────────────────────────────
@@ -350,6 +355,7 @@ function serverToEditor(project: any, blocks: any[]): EditorState {
             captionVisible: Boolean(l.captionVisible ?? false),
             objectPosition: l.objectPosition ? String(l.objectPosition) : undefined,
             zoom: l.zoom !== undefined ? Number(l.zoom) : undefined,
+            mediaType: l.mediaType === "video" ? "video" : "image",
           },
           right: {
             src: String(r.src ?? ""),
@@ -358,6 +364,7 @@ function serverToEditor(project: any, blocks: any[]): EditorState {
             captionVisible: Boolean(r.captionVisible ?? false),
             objectPosition: r.objectPosition ? String(r.objectPosition) : undefined,
             zoom: r.zoom !== undefined ? Number(r.zoom) : undefined,
+            mediaType: r.mediaType === "video" ? "video" : "image",
           },
         } as SplitImagePayload;
       } else if (b.type === "video") {
@@ -596,6 +603,181 @@ function FullImageBlockEditor({
   );
 }
 
+// ─── Video slot editor (for split-image blocks) ───────────────────────────────
+
+/**
+ * Compact video picker used inside a split-image slot. Mirrors the upload /
+ * library-select logic from VideoBlockEditor but operates on an ImageSlot
+ * (so caption, alt, and captionVisible are shared with the image variant).
+ */
+function VideoSlotEditor({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: ImageSlot;
+  onChange: (v: ImageSlot) => void;
+}) {
+  const capVisId = useId();
+  const queryClient = useQueryClient();
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setUploadError(null);
+      setUploading(true);
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        const res = await fetch("/api/admin/media/upload", {
+          method: "POST",
+          body: form,
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error ?? "Upload failed");
+        }
+        const media = await res.json();
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/media"] });
+        onChange({ ...value, src: media.url });
+      } catch (err: any) {
+        setUploadError(err.message ?? "Upload failed");
+      } finally {
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    },
+    [queryClient, value, onChange]
+  );
+
+  return (
+    <div className="space-y-2 border rounded-lg p-3 bg-gray-50">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
+
+      {/* Current video preview */}
+      {value.src ? (
+        <div className="relative w-full rounded-lg overflow-hidden border bg-black">
+          <video src={value.src} controls muted className="w-full max-h-40" />
+        </div>
+      ) : (
+        <div className="flex items-center justify-center w-full h-24 rounded-lg border-2 border-dashed bg-muted text-muted-foreground">
+          <div className="flex flex-col items-center gap-1 text-sm">
+            <span className="text-xl opacity-40">▶</span>
+            <span>No video selected</span>
+          </div>
+        </div>
+      )}
+
+      {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
+
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          {uploading ? "Uploading…" : "Upload video"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setLibraryOpen(true)}
+        >
+          <Library className="w-4 h-4 mr-2" />
+          Choose from library
+        </Button>
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="video/mp4,video/webm"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      <MediaLibrary
+        open={libraryOpen}
+        onOpenChange={setLibraryOpen}
+        onSelect={(media) => {
+          onChange({ ...value, src: media.url });
+          setLibraryOpen(false);
+        }}
+        selectedUrl={value.src || undefined}
+      />
+
+      <div>
+        <Label className="text-xs">Alt text</Label>
+        <Input
+          value={value.alt}
+          onChange={(e) => onChange({ ...value, alt: e.target.value })}
+          placeholder="Describe the video for screen readers"
+          className="mt-1"
+        />
+      </div>
+      <div>
+        <Label className="text-xs">Caption</Label>
+        <Input
+          value={value.caption}
+          onChange={(e) => onChange({ ...value, caption: e.target.value })}
+          placeholder="Optional caption text"
+          className="mt-1"
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <Switch
+          id={capVisId}
+          checked={value.captionVisible}
+          onCheckedChange={(checked) => onChange({ ...value, captionVisible: checked })}
+        />
+        <Label htmlFor={capVisId} className="text-xs cursor-pointer">
+          Show caption on page
+        </Label>
+      </div>
+    </div>
+  );
+}
+
+// ─── Helper: media-type toggle for a single split slot ────────────────────────
+
+function MediaTypeToggle({
+  value,
+  onChange,
+}: {
+  value: 'image' | 'video';
+  onChange: (t: 'image' | 'video') => void;
+}) {
+  return (
+    <div className="flex items-center gap-1 mb-2">
+      <span className="text-xs text-gray-500 mr-1">Media type:</span>
+      {(['image', 'video'] as const).map((t) => (
+        <button
+          key={t}
+          type="button"
+          onClick={() => onChange(t)}
+          className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+            value === t
+              ? "bg-blue-600 text-white border-blue-600"
+              : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
+          }`}
+        >
+          {t === 'image' ? '🖼 Image' : '▶ Video'}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function SplitImageBlockEditor({
   payload,
   onChange,
@@ -603,6 +785,14 @@ function SplitImageBlockEditor({
   payload: SplitImagePayload;
   onChange: (p: SplitImagePayload) => void;
 }) {
+  const leftType = payload.left.mediaType ?? 'image';
+  const rightType = payload.right.mediaType ?? 'image';
+
+  const setLeftType = (t: 'image' | 'video') =>
+    onChange({ ...payload, left: { ...payload.left, src: "", mediaType: t } });
+  const setRightType = (t: 'image' | 'video') =>
+    onChange({ ...payload, right: { ...payload.right, src: "", mediaType: t } });
+
   return (
     <div className="space-y-3">
       <div>
@@ -624,20 +814,44 @@ function SplitImageBlockEditor({
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <ImageSlotEditor
-          label="Left image"
-          value={payload.left}
-          onChange={(v) => onChange({ ...payload, left: v })}
-          aspectRatio={payload.wide === "left" ? 1.52 : 0.96}
-          cropPreviewLabel={payload.wide === "left" ? "(wide)" : "(narrow)"}
-        />
-        <ImageSlotEditor
-          label="Right image"
-          value={payload.right}
-          onChange={(v) => onChange({ ...payload, right: v })}
-          aspectRatio={payload.wide === "right" ? 1.52 : 0.96}
-          cropPreviewLabel={payload.wide === "right" ? "(wide)" : "(narrow)"}
-        />
+        {/* Left slot */}
+        <div>
+          <MediaTypeToggle value={leftType} onChange={setLeftType} />
+          {leftType === 'video' ? (
+            <VideoSlotEditor
+              label="Left video"
+              value={payload.left}
+              onChange={(v) => onChange({ ...payload, left: v })}
+            />
+          ) : (
+            <ImageSlotEditor
+              label="Left image"
+              value={payload.left}
+              onChange={(v) => onChange({ ...payload, left: v })}
+              aspectRatio={payload.wide === "left" ? 1.52 : 0.96}
+              cropPreviewLabel={payload.wide === "left" ? "(wide)" : "(narrow)"}
+            />
+          )}
+        </div>
+        {/* Right slot */}
+        <div>
+          <MediaTypeToggle value={rightType} onChange={setRightType} />
+          {rightType === 'video' ? (
+            <VideoSlotEditor
+              label="Right video"
+              value={payload.right}
+              onChange={(v) => onChange({ ...payload, right: v })}
+            />
+          ) : (
+            <ImageSlotEditor
+              label="Right image"
+              value={payload.right}
+              onChange={(v) => onChange({ ...payload, right: v })}
+              aspectRatio={payload.wide === "right" ? 1.52 : 0.96}
+              cropPreviewLabel={payload.wide === "right" ? "(wide)" : "(narrow)"}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

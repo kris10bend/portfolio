@@ -217,6 +217,7 @@ export async function registerRoutes(
           ...(l.zoom !== undefined ? { zoom: Number(l.zoom) } : {}),
           ...(l.caption ? { caption: String(l.caption) } : {}),
           ...(l.captionVisible !== undefined ? { captionVisible: Boolean(l.captionVisible) } : {}),
+          ...(l.mediaType === "video" ? { mediaType: "video" as const } : {}),
         },
         right: {
           src: String(r.src ?? ""),
@@ -225,6 +226,7 @@ export async function registerRoutes(
           ...(r.zoom !== undefined ? { zoom: Number(r.zoom) } : {}),
           ...(r.caption ? { caption: String(r.caption) } : {}),
           ...(r.captionVisible !== undefined ? { captionVisible: Boolean(r.captionVisible) } : {}),
+          ...(r.mediaType === "video" ? { mediaType: "video" as const } : {}),
         },
         wide: p.wide === "right" ? "right" : "left",
       };
