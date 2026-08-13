@@ -111,7 +111,7 @@ const ProjectCardContent = ({
           </div>
         )}
         {cardOverlay === 'confidential' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#002fa7]/75">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
             <p className="max-w-[260px] text-center text-[13px] font-normal leading-[1.6] text-white [font-family:'Geist',Helvetica] tracking-[0.01em]">
               Confidential project — reach out for information.
             </p>
