@@ -117,6 +117,7 @@ interface EditorState {
   quote: string;
   metaDescription: string;
   showOnHomepage: boolean;
+  homepageOrder: number | null;
   cardOverlay: 'in_progress' | 'confidential' | null;
   blocks: EditorBlock[];
   /** New password to set on next save (non-empty = will hash & store, empty = no change). */
@@ -320,6 +321,7 @@ function serverToEditor(project: any, blocks: any[]): EditorState {
     quote: project.quote ?? "",
     metaDescription: project.metaDescription ?? "",
     showOnHomepage: project.showOnHomepage ?? false,
+    homepageOrder: project.homepageOrder ?? null,
     cardOverlay: (project.cardOverlay as 'in_progress' | 'confidential' | null) ?? null,
     projectPasswordInput: "",
     clearProjectPassword: false,
@@ -416,6 +418,7 @@ function editorToPayload(state: EditorState, status?: "draft" | "published") {
     quote: state.quote || null,
     metaDescription: state.metaDescription || null,
     showOnHomepage: state.showOnHomepage,
+    homepageOrder: state.homepageOrder ?? null,
     cardOverlay: state.cardOverlay,
     ...passwordField,
     ...(status ? { status } : {}),
@@ -1619,6 +1622,32 @@ function AdminEditProjectContent({ user }: { user: string }) {
               Show on homepage
             </Label>
           </div>
+
+          {state.showOnHomepage && (
+            <div className="space-y-1">
+              <Label htmlFor="homepage-order" className="text-xs">
+                Homepage position
+              </Label>
+              <Input
+                id="homepage-order"
+                type="number"
+                min={1}
+                step={1}
+                placeholder="1"
+                value={state.homepageOrder ?? ""}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  set({
+                    homepageOrder: raw === "" ? null : Math.max(1, Math.round(Number(raw))),
+                  });
+                }}
+                className="w-24"
+              />
+              <p className="text-xs text-gray-400">
+                Lower numbers appear first. Changes take effect on save.
+              </p>
+            </div>
+          )}
 
           <Field label="Homepage card overlay" hint="Controls what visitors see on the homepage card">
             <Select

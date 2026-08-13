@@ -908,6 +908,7 @@ export async function registerRoutes(
     quote: z.string().max(5000).nullable().optional(),
     metaDescription: z.string().max(500).nullable().optional(),
     showOnHomepage: z.boolean().optional(),
+    homepageOrder: z.number().int().min(1).nullable().optional(),
     cardOverlay: z.enum(["in_progress", "confidential"]).nullable().optional(),
     /**
      * Project password (plain text — hashed server-side at cost 12).

@@ -82,7 +82,14 @@ function ProjectRow({
 
       {/* Project info */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">{project.title || "(Untitled)"}</p>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p className="text-sm font-medium text-gray-900 truncate">{project.title || "(Untitled)"}</p>
+          {project.showOnHomepage && project.homepageOrder != null && (
+            <span className="flex-shrink-0 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded px-1 py-0.5 leading-none">
+              #{project.homepageOrder}
+            </span>
+          )}
+        </div>
         <p className="text-xs text-gray-400 truncate">
           {[project.caseStudyLabel, project.slug].filter(Boolean).join(" · ")}
         </p>

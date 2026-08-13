@@ -101,6 +101,37 @@ app.use((req, res, next) => {
     console.warn("homepage_order correction migration failed (non-fatal):", err);
   }
 
+  // Data correction: ensure "building-bridges" is at homepage_order = 1.
+  // If it is NULL or greater than 1, set it to 1 and bump any project
+  // that was previously at slot 1 (to avoid a collision).
+  // Idempotent: only fires when building-bridges is not already at slot 1.
+  try {
+    const { db } = await import("./db");
+    const { sql } = await import("drizzle-orm");
+    const bbRows = await db.execute(
+      sql`SELECT homepage_order FROM cms_projects WHERE slug = 'building-bridges' LIMIT 1`
+    );
+    if (bbRows.rows.length > 0) {
+      const currentOrder = (bbRows.rows[0] as any).homepage_order;
+      if (currentOrder === null || currentOrder !== 1) {
+        // Shift ALL projects that currently occupy slot 1 or higher up by one
+        // to make room for building-bridges at slot 1 without creating collisions.
+        await db.execute(
+          sql`UPDATE cms_projects SET homepage_order = homepage_order + 1 WHERE homepage_order >= 1 AND slug != 'building-bridges'`
+        );
+        // Place building-bridges at slot 1.
+        await db.execute(
+          sql`UPDATE cms_projects SET homepage_order = 1 WHERE slug = 'building-bridges'`
+        );
+        console.log(
+          `homepage_order for building-bridges corrected from ${currentOrder ?? "NULL"} to 1.`
+        );
+      }
+    }
+  } catch (err) {
+    console.warn("building-bridges homepage_order correction failed (non-fatal):", err);
+  }
+
   // Serve user-uploaded images from the top-level uploads/ directory.
   // This is outside both the source tree and build output so it persists across
   // builds and deployments on Replit's durable filesystem.
