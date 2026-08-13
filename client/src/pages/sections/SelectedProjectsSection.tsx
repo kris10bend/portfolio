@@ -1,5 +1,6 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -12,6 +13,7 @@ interface ProjectCard {
   heroImageSrc: string;
   heroImageAlt: string;
   cardOverlay: 'in_progress' | 'confidential' | null;
+  isPasswordProtected?: boolean;
   /** Optional featured image (falls back to heroImageSrc when absent) */
   featuredImageUrl?: string;
   featuredImageAlt?: string;
@@ -54,6 +56,77 @@ function slotSizes(index: number): { imageHeight: ImageHeight; titleSize: TitleS
   return large;
 }
 
+// ─── Password form for confidential cards ─────────────────────────────────────
+
+function CardPasswordForm({ slug }: { slug: string }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [, navigate] = useLocation();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!password || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/projects/${encodeURIComponent(slug)}/unlock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (res.ok) {
+        navigate(`/work/${slug}`);
+      } else {
+        setError("Incorrect password");
+        setPassword("");
+        inputRef.current?.focus();
+      }
+    } catch {
+      setError("Something went wrong");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      onClick={(e) => e.stopPropagation()}
+      className="mt-3 flex flex-col gap-2 w-full max-w-[220px]"
+    >
+      <div className="flex gap-1">
+        <input
+          ref={inputRef}
+          type="password"
+          value={password}
+          onChange={(e) => { setPassword(e.target.value); setError(null); }}
+          placeholder="Password"
+          autoComplete="off"
+          className="flex-1 min-w-0 rounded px-2 py-1 text-[12px] bg-white/20 border border-white/40 text-white placeholder-white/60 outline-none focus:border-white/80 focus:bg-white/30 transition"
+          style={{ fontFamily: "'Geist', Helvetica" }}
+          disabled={submitting}
+        />
+        <button
+          type="submit"
+          disabled={!password || submitting}
+          className="shrink-0 rounded px-2 py-1 text-[12px] font-medium bg-white text-[#002fa7] hover:bg-white/90 disabled:opacity-50 transition"
+          style={{ fontFamily: "'Geist', Helvetica" }}
+        >
+          {submitting ? "…" : "Enter"}
+        </button>
+      </div>
+      {error && (
+        <p className="text-[11px] text-white/80 leading-tight" style={{ fontFamily: "'Geist', Helvetica" }}>
+          {error}
+        </p>
+      )}
+    </form>
+  );
+}
+
 // ─── Card components ──────────────────────────────────────────────────────────
 
 const ProjectCardContent = ({
@@ -81,6 +154,9 @@ const ProjectCardContent = ({
   const cropZoom = useSquareCrop
     ? (card.featuredSquareCropZoom ?? 1)
     : (card.featuredImageZoom ?? 1);
+
+  const isConfidentialWithPassword =
+    cardOverlay === 'confidential' && card.isPasswordProtected === true;
 
   return (
     <CardContent className="space-y-6 p-0">
@@ -110,11 +186,19 @@ const ProjectCardContent = ({
             </p>
           </div>
         )}
-        {cardOverlay === 'confidential' && (
+        {cardOverlay === 'confidential' && !isConfidentialWithPassword && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
             <p className="max-w-[260px] text-center text-[13px] font-normal leading-[1.6] text-white [font-family:'Geist',Helvetica] tracking-[0.01em]">
               Confidential project — reach out for information.
             </p>
+          </div>
+        )}
+        {isConfidentialWithPassword && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100 px-4">
+            <p className="max-w-[260px] text-center text-[13px] font-normal leading-[1.6] text-white [font-family:'Geist',Helvetica] tracking-[0.01em] mb-1">
+              Confidential project
+            </p>
+            <CardPasswordForm slug={card.slug} />
           </div>
         )}
       </div>

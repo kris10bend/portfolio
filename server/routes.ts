@@ -6,7 +6,16 @@ import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import passport from "passport";
 import { requireAdmin } from "./auth";
+import bcrypt from "bcrypt";
 import multer from "multer";
+
+// ─── Session type augmentation ────────────────────────────────────────────────
+declare module "express-session" {
+  interface SessionData {
+    /** Slugs of confidential projects the visitor has successfully unlocked. */
+    unlockedProjects?: string[];
+  }
+}
 import path from "path";
 import fs from "fs";
 import { promises as fsp } from "fs";
@@ -87,6 +96,19 @@ const contactRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many messages sent. Please wait a few minutes and try again." },
+});
+
+/**
+ * Rate limiter for the project unlock endpoint.
+ * Limits to 5 attempts per IP per 15 minutes to prevent brute-force attacks.
+ * Counts failed attempts the same as successful ones.
+ */
+const unlockRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: "Too many attempts. Please wait a few minutes and try again." },
 });
 
 export async function registerRoutes(
@@ -259,6 +281,7 @@ export async function registerRoutes(
         heroImageSrc: string;
         heroImageAlt: string;
         cardOverlay: 'in_progress' | 'confidential' | null;
+        isPasswordProtected?: boolean;
         featuredImageUrl?: string;
         featuredImageAlt?: string;
         featuredImageObjectPosition?: string;
@@ -280,6 +303,7 @@ export async function registerRoutes(
             heroImageSrc: p.featuredImageUrl ?? p.heroImageUrl ?? "",
             heroImageAlt: p.featuredImageAlt ?? p.heroImageAlt ?? "",
             cardOverlay: (p.cardOverlay as 'in_progress' | 'confidential' | null) ?? null,
+            ...(p.projectPasswordHash != null ? { isPasswordProtected: true } : {}),
             ...(p.featuredImageUrl ? { featuredImageUrl: p.featuredImageUrl } : {}),
             ...(p.featuredImageAlt ? { featuredImageAlt: p.featuredImageAlt } : {}),
             ...(p.featuredImageObjectPosition ? { featuredImageObjectPosition: p.featuredImageObjectPosition } : {}),
@@ -299,6 +323,7 @@ export async function registerRoutes(
           heroImageSrc: p.featuredImageUrl ?? p.heroImageUrl ?? "",
           heroImageAlt: p.featuredImageAlt ?? p.heroImageAlt ?? "",
           cardOverlay: (p.cardOverlay as 'in_progress' | 'confidential' | null) ?? null,
+          ...(p.projectPasswordHash != null ? { isPasswordProtected: true } : {}),
           ...(p.featuredImageUrl ? { featuredImageUrl: p.featuredImageUrl } : {}),
           ...(p.featuredImageAlt ? { featuredImageAlt: p.featuredImageAlt } : {}),
           ...(p.featuredImageObjectPosition ? { featuredImageObjectPosition: p.featuredImageObjectPosition } : {}),
@@ -438,12 +463,28 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Project not found" });
       }
 
-      // Enforce public visibility: projects hidden from the homepage or with
-      // an overlay (in_progress / confidential) must not be reachable by URL.
-      // Admin/preview routes bypass this check entirely — only this public
-      // endpoint is affected.
-      if (!dbProject.showOnHomepage || dbProject.cardOverlay != null) {
+      // Enforce public visibility.
+      // Rule 1: showOnHomepage:false is always a hard 404 — no bypass.
+      if (!dbProject.showOnHomepage) {
         return res.status(404).json({ error: "Project not found" });
+      }
+
+      // Rule 2: card overlays gate access. in_progress is always 404.
+      // confidential+password-protected shows a password gate (401) when not
+      // unlocked; confidential with no hash keeps the original 404 behaviour.
+      if (dbProject.cardOverlay != null) {
+        if (
+          dbProject.cardOverlay === 'confidential' &&
+          dbProject.projectPasswordHash != null
+        ) {
+          const unlocked: string[] = (req.session as any).unlockedProjects ?? [];
+          if (!unlocked.includes(slug)) {
+            return res.status(401).json({ passwordRequired: true });
+          }
+          // Visitor has unlocked this project — fall through to serve it.
+        } else {
+          return res.status(404).json({ error: "Project not found" });
+        }
       }
 
       // ── DB record → ProjectData ───────────────────────────────────────────
@@ -589,6 +630,58 @@ export async function registerRoutes(
     }
   });
 
+  // ─── Project unlock endpoint ──────────────────────────────────────────────
+
+  /**
+   * POST /api/projects/:slug/unlock
+   * Public (no requireAdmin). Accepts { password: string } in the request body.
+   * Compares against the stored bcrypt hash. On success, writes the slug into
+   * the session's unlockedProjects array so the visitor can access the case study.
+   */
+  app.post("/api/projects/:slug/unlock", unlockRateLimiter, async (req: Request, res: Response) => {
+    const slug = String(req.params.slug);
+    const password = String(req.body?.password ?? "");
+
+    if (!password) {
+      return res.status(400).json({ ok: false, error: "Password is required" });
+    }
+
+    try {
+      // Only serve confidential+password-protected published projects
+      const project = await storage.getPublishedCmsProjectBySlug(slug);
+      if (
+        !project ||
+        project.cardOverlay !== 'confidential' ||
+        project.projectPasswordHash == null
+      ) {
+        return res.status(404).json({ ok: false, error: "Not found" });
+      }
+
+      const match = await bcrypt.compare(password, project.projectPasswordHash);
+      if (!match) {
+        return res.status(401).json({ ok: false, error: "Incorrect password" });
+      }
+
+      // Record the unlocked slug in the session
+      const session = req.session as any;
+      const unlocked: string[] = session.unlockedProjects ?? [];
+      if (!unlocked.includes(slug)) {
+        unlocked.push(slug);
+      }
+      session.unlockedProjects = unlocked;
+
+      // Persist session before responding
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => (err ? reject(err) : resolve()));
+      });
+
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error(`POST /api/projects/${slug}/unlock error:`, err);
+      return res.status(500).json({ ok: false, error: "Internal error" });
+    }
+  });
+
   // ─── Admin auth routes ─────────────────────────────────────────────────────
 
   // POST /api/admin/login — authenticate and create session
@@ -629,11 +722,22 @@ export async function registerRoutes(
 
   // ─── Admin project CRUD ────────────────────────────────────────────────────
 
+  /**
+   * Strip the password hash from a CMS project record before returning it to
+   * admin clients. Exposes `hasPasswordHash: boolean` instead so the editor UI
+   * can show whether a password is currently set without ever receiving the
+   * bcrypt verifier.
+   */
+  function sanitizeAdminProject(project: Record<string, unknown>) {
+    const { projectPasswordHash, ...rest } = project as any;
+    return { ...rest, hasPasswordHash: projectPasswordHash != null };
+  }
+
   // GET /api/admin/projects — list all projects ordered by homepageOrder
   app.get("/api/admin/projects", requireAdmin, async (req: Request, res: Response) => {
     try {
       const projects = await storage.getCmsProjects();
-      return res.json(projects);
+      return res.json(projects.map(sanitizeAdminProject));
     } catch (err) {
       console.error("GET /api/admin/projects error:", err);
       return res.status(500).json({ error: "Failed to fetch projects" });
@@ -644,7 +748,7 @@ export async function registerRoutes(
   app.post("/api/admin/projects", requireAdmin, async (_req: Request, res: Response) => {
     try {
       const project = await storage.createCmsProject({});
-      return res.status(201).json(project);
+      return res.status(201).json(sanitizeAdminProject(project));
     } catch (err) {
       console.error("POST /api/admin/projects error:", err);
       return res.status(500).json({ error: "Failed to create project" });
@@ -692,7 +796,7 @@ export async function registerRoutes(
       if (!updated) {
         return res.status(404).json({ error: "Project not found" });
       }
-      return res.json(updated);
+      return res.json(sanitizeAdminProject(updated));
     } catch (err) {
       console.error("PUT /api/admin/projects/:id error:", err);
       return res.status(500).json({ error: "Failed to update project" });
@@ -715,7 +819,7 @@ export async function registerRoutes(
         status: "draft",
         showOnHomepage: false,
       });
-      return res.status(201).json(copy);
+      return res.status(201).json(sanitizeAdminProject(copy));
     } catch (err) {
       console.error("POST /api/admin/projects/:id/duplicate error:", err);
       return res.status(500).json({ error: "Failed to duplicate project" });
@@ -759,7 +863,13 @@ export async function registerRoutes(
       const project = await storage.getCmsProjectById(id);
       if (!project) return res.status(404).json({ error: "Project not found" });
       const blocks = await storage.getContentBlocksByProjectId(id);
-      return res.json({ project, blocks });
+      // Strip the password hash from the admin response — never expose it to the client.
+      // Instead, expose a boolean so the editor can show "Password set ✓".
+      const { projectPasswordHash, ...projectSafe } = project;
+      return res.json({
+        project: { ...projectSafe, hasPasswordHash: projectPasswordHash != null },
+        blocks,
+      });
     } catch (err) {
       console.error("GET /api/admin/projects/:id/full error:", err);
       return res.status(500).json({ error: "Failed to fetch project" });
@@ -798,6 +908,14 @@ export async function registerRoutes(
     showOnHomepage: z.boolean().optional(),
     cardOverlay: z.enum(["in_progress", "confidential"]).nullable().optional(),
     /**
+     * Project password (plain text — hashed server-side at cost 12).
+     * - Non-empty string: hash and store as projectPasswordHash.
+     * - null: clear the hash (set to NULL).
+     * - undefined / omitted: leave the existing hash unchanged.
+     * Never stored or logged in plain text.
+     */
+    projectPassword: z.string().max(200).nullable().optional(),
+    /**
      * Always required for full-replacement endpoints. The editor sends the complete
      * block list every save. Pass [] to intentionally clear all blocks.
      * Omitting this field returns 400 so a partial PUT can never silently erase blocks.
@@ -808,21 +926,33 @@ export async function registerRoutes(
   /**
    * Helper: coerce the validated payload into project-field updates + a block list,
    * then atomically save both in one transaction.
+   * Handles projectPassword → projectPasswordHash hashing transparently.
    */
   async function saveProjectFull(
     id: string,
     data: z.infer<typeof fullProjectSaveSchema>,
     overrides?: Record<string, unknown>
   ) {
-    const { blocks, ...rest } = data;
-    const projectFields = { ...rest, ...overrides } as any;
+    const { blocks, projectPassword, ...rest } = data;
+    const projectFields: Record<string, unknown> = { ...rest, ...overrides };
+
+    // Resolve password → hash
+    if (projectPassword === null) {
+      // Explicit clear: set hash to NULL
+      projectFields.projectPasswordHash = null;
+    } else if (typeof projectPassword === "string" && projectPassword.length > 0) {
+      // New password: hash at cost 12
+      projectFields.projectPasswordHash = await bcrypt.hash(projectPassword, 12);
+    }
+    // undefined / empty string: leave existing hash unchanged (omit the field)
+
     // blocks is always present (required by fullProjectSaveSchema) — pass as-is.
     const blockList = blocks.map((b, i) => ({
       type: b.type,
       position: i,
       payload: b.payload,
     }));
-    return storage.updateProjectWithBlocks(id, projectFields, blockList);
+    return storage.updateProjectWithBlocks(id, projectFields as any, blockList);
   }
 
   // PUT /api/admin/projects/:id/full — save all project fields + replace block list atomically
@@ -836,7 +966,7 @@ export async function registerRoutes(
       const existing = await storage.getCmsProjectById(id);
       if (!existing) return res.status(404).json({ error: "Project not found" });
       const result = await saveProjectFull(id, parsed.data);
-      return res.json(result);
+      return res.json({ project: sanitizeAdminProject(result.project), blocks: result.blocks });
     } catch (err) {
       console.error("PUT /api/admin/projects/:id/full error:", err);
       return res.status(500).json({ error: "Failed to save project" });
@@ -854,7 +984,7 @@ export async function registerRoutes(
       const existing = await storage.getCmsProjectById(id);
       if (!existing) return res.status(404).json({ error: "Project not found" });
       const result = await saveProjectFull(id, parsed.data, { status: "published" });
-      return res.json(result);
+      return res.json({ project: sanitizeAdminProject(result.project), blocks: result.blocks });
     } catch (err) {
       console.error("POST /api/admin/projects/:id/publish error:", err);
       return res.status(500).json({ error: "Failed to publish project" });

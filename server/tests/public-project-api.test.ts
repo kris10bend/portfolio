@@ -336,3 +336,187 @@ describe("GET /api/projects/:slug — single project", () => {
     createdProjectIds.splice(createdProjectIds.indexOf(p.id), 1);
   });
 });
+
+// ─── Password protection ──────────────────────────────────────────────────────
+
+describe("Password-protected confidential projects", () => {
+  test("confidential project with no password hash still returns 404 (existing behaviour preserved)", async () => {
+    const testSlug = `test-conf-nopw-${Date.now()}`;
+    const p = await createPublishedProject({
+      slug: testSlug,
+      title: "Confidential No Password",
+      homepageOrder: 99,
+      showOnHomepage: true,
+    });
+    await storage.updateCmsProject(p.id, { cardOverlay: "confidential" });
+
+    const res = await fetch(`${baseUrl}/api/projects/${testSlug}`);
+    assert.equal(res.status, 404, "Confidential project without a password hash must return 404");
+
+    await db.delete(cmsProjects).where(eq(cmsProjects.id, p.id));
+    createdProjectIds.splice(createdProjectIds.indexOf(p.id), 1);
+  });
+
+  test("confidential+password project returns 401 with passwordRequired:true when not unlocked", async () => {
+    const testSlug = `test-conf-pw-${Date.now()}`;
+    const bcrypt = await import("bcrypt");
+    const hash = await bcrypt.hash("correct-password", 4); // low cost for test speed
+    const p = await createPublishedProject({
+      slug: testSlug,
+      title: "Confidential With Password",
+      homepageOrder: 99,
+      showOnHomepage: true,
+    });
+    await db.update(cmsProjects)
+      .set({ cardOverlay: "confidential", projectPasswordHash: hash })
+      .where(eq(cmsProjects.id, p.id));
+
+    const res = await fetch(`${baseUrl}/api/projects/${testSlug}`);
+    assert.equal(res.status, 401, "Locked project must return 401");
+    const body = (await res.json()) as { passwordRequired: boolean };
+    assert.equal(body.passwordRequired, true, "Response must include passwordRequired:true");
+
+    await db.delete(cmsProjects).where(eq(cmsProjects.id, p.id));
+    createdProjectIds.splice(createdProjectIds.indexOf(p.id), 1);
+  });
+
+  test("unlock endpoint rejects a wrong password", async () => {
+    const testSlug = `test-unlock-wrong-${Date.now()}`;
+    const bcrypt = await import("bcrypt");
+    const hash = await bcrypt.hash("correct-password", 4);
+    const p = await createPublishedProject({
+      slug: testSlug,
+      title: "Unlock Wrong Password Test",
+      homepageOrder: 99,
+      showOnHomepage: true,
+    });
+    await db.update(cmsProjects)
+      .set({ cardOverlay: "confidential", projectPasswordHash: hash })
+      .where(eq(cmsProjects.id, p.id));
+
+    const res = await fetch(`${baseUrl}/api/projects/${testSlug}/unlock`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "wrong-password" }),
+    });
+    assert.equal(res.status, 401, "Wrong password must return 401");
+    const body = (await res.json()) as { ok: boolean };
+    assert.equal(body.ok, false, "ok must be false for wrong password");
+
+    await db.delete(cmsProjects).where(eq(cmsProjects.id, p.id));
+    createdProjectIds.splice(createdProjectIds.indexOf(p.id), 1);
+  });
+
+  test("unlock endpoint accepts correct password and project becomes accessible in the same session", async () => {
+    const testSlug = `test-unlock-ok-${Date.now()}`;
+    const bcrypt = await import("bcrypt");
+    const hash = await bcrypt.hash("correct-password", 4);
+    const p = await createPublishedProject({
+      slug: testSlug,
+      title: "Unlock Correct Password Test",
+      homepageOrder: 99,
+      showOnHomepage: true,
+    });
+    await db.update(cmsProjects)
+      .set({ cardOverlay: "confidential", projectPasswordHash: hash })
+      .where(eq(cmsProjects.id, p.id));
+
+    // Use a cookie jar so the session carries over
+    const cookieJar: string[] = [];
+
+    const unlockRes = await fetch(`${baseUrl}/api/projects/${testSlug}/unlock`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "correct-password" }),
+    });
+    assert.equal(unlockRes.status, 200, "Correct password must return 200");
+    const unlockBody = (await unlockRes.json()) as { ok: boolean };
+    assert.equal(unlockBody.ok, true, "ok must be true for correct password");
+
+    // Capture the session cookie
+    const setCookie = unlockRes.headers.get("set-cookie");
+    if (setCookie) cookieJar.push(setCookie.split(";")[0]);
+
+    // Now fetch the project with the session cookie — should succeed
+    const projectRes = await fetch(`${baseUrl}/api/projects/${testSlug}`, {
+      headers: cookieJar.length ? { cookie: cookieJar.join("; ") } : {},
+    });
+    assert.equal(projectRes.status, 200, "Project must be accessible after unlock");
+    const projectBody = (await projectRes.json()) as { slug: string };
+    assert.equal(projectBody.slug, testSlug);
+
+    await db.delete(cmsProjects).where(eq(cmsProjects.id, p.id));
+    createdProjectIds.splice(createdProjectIds.indexOf(p.id), 1);
+  });
+
+  test("showOnHomepage:false + confidential + password still returns 404 (not 401)", async () => {
+    const testSlug = `test-hidden-conf-pw-${Date.now()}`;
+    const bcrypt = await import("bcrypt");
+    const hash = await bcrypt.hash("correct-password", 4);
+    const p = await createPublishedProject({
+      slug: testSlug,
+      title: "Hidden + Confidential + Password",
+      homepageOrder: 99,
+      showOnHomepage: false,
+    });
+    await db.update(cmsProjects)
+      .set({ cardOverlay: "confidential", projectPasswordHash: hash })
+      .where(eq(cmsProjects.id, p.id));
+
+    const res = await fetch(`${baseUrl}/api/projects/${testSlug}`);
+    assert.equal(res.status, 404, "showOnHomepage:false must always return 404 regardless of password");
+
+    await db.delete(cmsProjects).where(eq(cmsProjects.id, p.id));
+    createdProjectIds.splice(createdProjectIds.indexOf(p.id), 1);
+  });
+
+  test("GET /api/projects list includes isPasswordProtected:true for confidential+password project", async () => {
+    const testSlug = `test-list-pw-${Date.now()}`;
+    const bcrypt = await import("bcrypt");
+    const hash = await bcrypt.hash("correct-password", 4);
+    const p = await createPublishedProject({
+      slug: testSlug,
+      title: "List Password Protected",
+      homepageOrder: 60,
+      showOnHomepage: true,
+    });
+    await db.update(cmsProjects)
+      .set({ cardOverlay: "confidential", projectPasswordHash: hash })
+      .where(eq(cmsProjects.id, p.id));
+
+    const res = await fetch(`${baseUrl}/api/projects`);
+    assert.equal(res.status, 200);
+    const list = (await res.json()) as Array<{ slug: string; isPasswordProtected?: boolean; cardOverlay: string | null }>;
+    const card = list.find((c) => c.slug === testSlug);
+    assert.ok(card, "Password-protected project must appear in homepage list");
+    assert.equal(card!.isPasswordProtected, true, "isPasswordProtected must be true");
+    assert.equal(card!.cardOverlay, "confidential");
+
+    await db.delete(cmsProjects).where(eq(cmsProjects.id, p.id));
+    createdProjectIds.splice(createdProjectIds.indexOf(p.id), 1);
+  });
+
+  test("project_password_hash is never present in any public API response", async () => {
+    const testSlug = `test-nohash-${Date.now()}`;
+    const bcrypt = await import("bcrypt");
+    const hash = await bcrypt.hash("correct-password", 4);
+    const p = await createPublishedProject({
+      slug: testSlug,
+      title: "No Hash Exposed",
+      homepageOrder: 61,
+      showOnHomepage: true,
+    });
+    await db.update(cmsProjects)
+      .set({ cardOverlay: "confidential", projectPasswordHash: hash })
+      .where(eq(cmsProjects.id, p.id));
+
+    // Check homepage list
+    const listRes = await fetch(`${baseUrl}/api/projects`);
+    const list = await listRes.text();
+    assert.ok(!list.includes("projectPasswordHash"), "Hash must not appear in list response");
+    assert.ok(!list.includes("project_password_hash"), "Raw column name must not appear in list response");
+
+    await db.delete(cmsProjects).where(eq(cmsProjects.id, p.id));
+    createdProjectIds.splice(createdProjectIds.indexOf(p.id), 1);
+  });
+});

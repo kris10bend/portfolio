@@ -70,6 +70,7 @@ export const cmsProjects = pgTable("cms_projects", {
   featuredSquareCropX: real("featured_square_crop_x"),
   featuredSquareCropY: real("featured_square_crop_y"),
   featuredSquareCropZoom: real("featured_square_crop_zoom"),
+  projectPasswordHash: varchar("project_password_hash"),
   archivedAt: timestamp("archived_at"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),

@@ -119,6 +119,12 @@ interface EditorState {
   showOnHomepage: boolean;
   cardOverlay: 'in_progress' | 'confidential' | null;
   blocks: EditorBlock[];
+  /** New password to set on next save (non-empty = will hash & store, empty = no change). */
+  projectPasswordInput: string;
+  /** If true, clears the password hash on next save. */
+  clearProjectPassword: boolean;
+  /** Whether the server currently has a password hash stored. */
+  hasExistingPassword: boolean;
 }
 
 function emptySlot(): ImageSlot {
@@ -315,6 +321,9 @@ function serverToEditor(project: any, blocks: any[]): EditorState {
     metaDescription: project.metaDescription ?? "",
     showOnHomepage: project.showOnHomepage ?? false,
     cardOverlay: (project.cardOverlay as 'in_progress' | 'confidential' | null) ?? null,
+    projectPasswordInput: "",
+    clearProjectPassword: false,
+    hasExistingPassword: project.hasPasswordHash === true,
     blocks: blocks.map((b: any) => {
       const raw = (b.payload ?? {}) as Record<string, unknown>;
       let payload: BlockPayload;
@@ -373,6 +382,16 @@ function serverToEditor(project: any, blocks: any[]): EditorState {
 }
 
 function editorToPayload(state: EditorState, status?: "draft" | "published") {
+  // Resolve password field:
+  // - clearProjectPassword=true → send null (clear)
+  // - projectPasswordInput non-empty → send the new password
+  // - otherwise → omit (leave existing hash unchanged)
+  const passwordField: { projectPassword?: string | null } = state.clearProjectPassword
+    ? { projectPassword: null }
+    : state.projectPasswordInput
+    ? { projectPassword: state.projectPasswordInput }
+    : {};
+
   return {
     title: state.title,
     slug: state.slug,
@@ -398,6 +417,7 @@ function editorToPayload(state: EditorState, status?: "draft" | "published") {
     metaDescription: state.metaDescription || null,
     showOnHomepage: state.showOnHomepage,
     cardOverlay: state.cardOverlay,
+    ...passwordField,
     ...(status ? { status } : {}),
     blocks: state.blocks.map((b) => ({
       type: b.type,
@@ -1617,10 +1637,54 @@ function AdminEditProjectContent({ user }: { user: string }) {
             )}
             {state.cardOverlay === 'confidential' && (
               <p className="text-xs text-gray-500 mt-1">
-                Shows a blue overlay always visible: "Confidential project — reach out for information." Card is not clickable.
+                Shows a blue overlay on hover: "Confidential project." Card links to a password-gated case study when a password is set.
               </p>
             )}
           </Field>
+
+          {state.cardOverlay === 'confidential' && (
+            <Field
+              label="Project password"
+              hint="Visitors who enter the correct password can view the full case study"
+            >
+              {state.hasExistingPassword && !state.clearProjectPassword && !state.projectPasswordInput && (
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs text-green-600 font-medium">Password set ✓</span>
+                  <button
+                    type="button"
+                    className="text-xs text-red-500 hover:text-red-700 underline"
+                    onClick={() => set({ clearProjectPassword: true, projectPasswordInput: "" })}
+                  >
+                    Remove password
+                  </button>
+                </div>
+              )}
+              {state.clearProjectPassword && (
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs text-amber-600">Password will be removed on save.</span>
+                  <button
+                    type="button"
+                    className="text-xs text-gray-500 hover:text-gray-700 underline"
+                    onClick={() => set({ clearProjectPassword: false })}
+                  >
+                    Undo
+                  </button>
+                </div>
+              )}
+              {!state.clearProjectPassword && (
+                <Input
+                  type="password"
+                  value={state.projectPasswordInput}
+                  onChange={(e) => set({ projectPasswordInput: e.target.value })}
+                  placeholder={state.hasExistingPassword ? "Enter new password to change…" : "Set a password…"}
+                  autoComplete="new-password"
+                />
+              )}
+              <p className="text-xs text-gray-400 mt-1">
+                Leave blank to keep the current password unchanged. Clear the field and save to remove password protection entirely.
+              </p>
+            </Field>
+          )}
         </Section>
 
         {/* ── Section: Featured image ────────────────────────────────────── */}
