@@ -300,8 +300,8 @@ export async function registerRoutes(
             slug: p.slug,
             title: p.title.replace(/\n/g, " "),
             excerpt: p.metaDescription ?? ((p.description as string[] | null)?.[0] ?? ""),
-            heroImageSrc: p.featuredImageUrl ?? p.heroImageUrl ?? "",
-            heroImageAlt: p.featuredImageAlt ?? p.heroImageAlt ?? "",
+            heroImageSrc: p.featuredImageUrl || p.heroImageUrl || "",
+            heroImageAlt: p.featuredImageAlt || p.heroImageAlt || "",
             cardOverlay: (p.cardOverlay as 'in_progress' | 'confidential' | null) ?? null,
             ...(p.projectPasswordHash != null ? { isPasswordProtected: true } : {}),
             ...(p.featuredImageUrl ? { featuredImageUrl: p.featuredImageUrl } : {}),
@@ -320,8 +320,8 @@ export async function registerRoutes(
           slug: p.slug,
           title: p.title.replace(/\n/g, " "),
           excerpt: p.metaDescription ?? ((p.description as string[] | null)?.[0] ?? ""),
-          heroImageSrc: p.featuredImageUrl ?? p.heroImageUrl ?? "",
-          heroImageAlt: p.featuredImageAlt ?? p.heroImageAlt ?? "",
+          heroImageSrc: p.featuredImageUrl || p.heroImageUrl || "",
+          heroImageAlt: p.featuredImageAlt || p.heroImageAlt || "",
           cardOverlay: (p.cardOverlay as 'in_progress' | 'confidential' | null) ?? null,
           ...(p.projectPasswordHash != null ? { isPasswordProtected: true } : {}),
           ...(p.featuredImageUrl ? { featuredImageUrl: p.featuredImageUrl } : {}),
@@ -935,6 +935,20 @@ export async function registerRoutes(
   ) {
     const { blocks, projectPassword, ...rest } = data;
     const projectFields: Record<string, unknown> = { ...rest, ...overrides };
+
+    // Normalize empty-string URL fields to null so the DB stays clean.
+    // An empty string in featuredImageUrl would win over a valid heroImageUrl
+    // in the null-coalescing fallback used by the homepage API.
+    for (const urlField of [
+      "heroImageUrl",
+      "featuredImageUrl",
+      "featuredImageAlt",
+      "featuredImageObjectPosition",
+    ] as const) {
+      if (projectFields[urlField] === "") {
+        projectFields[urlField] = null;
+      }
+    }
 
     // Resolve password → hash
     if (projectPassword === null) {
