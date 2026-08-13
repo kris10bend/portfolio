@@ -72,7 +72,7 @@ const FullRow = ({ image }: { image: ProjectImageAsset }): JSX.Element => (
     <GalleryImage image={image} className="h-[280px] w-full sm:h-[400px] lg:h-[560px]" />
     {image.captionVisible && image.caption && (
       <p
-        className="text-sm text-gray-500 leading-snug"
+        className="text-xs text-black leading-snug"
         style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
       >
         {image.caption}
@@ -109,7 +109,7 @@ const SplitRow = ({
         />
         {left.captionVisible && left.caption && (
           <p
-            className="text-sm text-gray-500 leading-snug"
+            className="text-xs text-black leading-snug"
             style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
           >
             {left.caption}
@@ -123,7 +123,7 @@ const SplitRow = ({
         />
         {right.captionVisible && right.caption && (
           <p
-            className="text-sm text-gray-500 leading-snug"
+            className="text-xs text-black leading-snug"
             style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
           >
             {right.caption}
@@ -163,7 +163,7 @@ const VideoRow = ({
     </div>
     {captionVisible && caption && (
       <p
-        className="text-sm text-gray-500 leading-snug"
+        className="text-xs text-black leading-snug"
         style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
       >
         {caption}
