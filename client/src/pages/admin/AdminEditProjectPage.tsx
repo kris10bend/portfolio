@@ -1300,6 +1300,9 @@ function AdminEditProjectContent({ user }: { user: string }) {
       setAutoSaveStatus("saved");
       if (autoSaveClearTimer.current) clearTimeout(autoSaveClearTimer.current);
       autoSaveClearTimer.current = setTimeout(() => setAutoSaveStatus("idle"), 3000);
+      // Invalidate public caches so homepage and project page reflect new state immediately.
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", latestStateRef.current?.slug] });
       // If the user made more edits while this request was in flight, save them.
       if (userRevRef.current > revAtSend) {
         scheduleFollowUpAutoSave();
@@ -1360,6 +1363,9 @@ function AdminEditProjectContent({ user }: { user: string }) {
       // The follow-up auto-save below captures latestStateRef, which always holds
       // the newest content.
       queryClient.invalidateQueries({ queryKey: ["/api/admin/projects"] });
+      // Invalidate public caches so homepage and project page reflect new state immediately.
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", latestStateRef.current?.slug] });
       toast({
         title: publish ? "Published!" : "Draft saved",
         description: publish
