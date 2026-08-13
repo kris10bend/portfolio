@@ -22,7 +22,7 @@ export interface IStorage {
   updateCmsProject(id: string, updates: Partial<InsertCmsProject>): Promise<CmsProject | undefined>;
   archiveCmsProject(id: string): Promise<void>;
   restoreCmsProject(id: string): Promise<void>;
-  updateCmsProjectsOrder(items: { id: string; homepageOrder: number }[]): Promise<void>;
+  updateCmsProjectsOrder(items: { id: string; homepageOrder: number | null }[]): Promise<void>;
 
   // CMS Content Blocks
   getContentBlocksByProjectId(projectId: string): Promise<CmsContentBlock[]>;
@@ -158,13 +158,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCmsProjectsOrder(
-    items: { id: string; homepageOrder: number }[]
+    items: { id: string; homepageOrder: number | null }[]
   ): Promise<void> {
     await db.transaction(async (tx) => {
       for (const { id, homepageOrder } of items) {
         await tx
           .update(cmsProjects)
-          .set({ homepageOrder, updatedAt: new Date() })
+          .set({ homepageOrder: homepageOrder ?? null, updatedAt: new Date() })
           .where(eq(cmsProjects.id, id));
       }
     });

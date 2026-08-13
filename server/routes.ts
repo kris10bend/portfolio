@@ -758,7 +758,7 @@ export async function registerRoutes(
   // PUT /api/admin/projects/order — bulk-update homepageOrder
   // Must be defined BEFORE /api/admin/projects/:id to avoid route shadowing
   app.put("/api/admin/projects/order", requireAdmin, async (req: Request, res: Response) => {
-    const orderSchema = z.array(z.object({ id: z.string(), homepageOrder: z.number().int() }));
+    const orderSchema = z.array(z.object({ id: z.string(), homepageOrder: z.number().int().nullable() }));
     const parsed = orderSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: "Invalid order payload" });

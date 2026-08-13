@@ -205,7 +205,13 @@ function AdminProjectsContent({ user }: { user: string }) {
 
   const saveOrderMutation = useMutation({
     mutationFn: async (list: CmsProject[]) => {
-      const payload = list.map((p, i) => ({ id: p.id, homepageOrder: i + 1 }));
+      // Only visible projects get contiguous slot numbers; hidden ones get null
+      // so they don't consume slots and create gaps in the homepage sequence.
+      let visibleSlot = 0;
+      const payload = list.map((p) => ({
+        id: p.id,
+        homepageOrder: p.showOnHomepage ? ++visibleSlot : null,
+      }));
       await adminApiRequest("PUT", "/api/admin/projects/order", payload);
     },
     onSuccess: () => {
