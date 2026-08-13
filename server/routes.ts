@@ -355,9 +355,11 @@ export async function registerRoutes(
       // Build a sparse slot map (1-indexed → card)
       const slots: (ProjectCard | null)[] = new Array(maxSlot + 1).fill(null);
       for (const { order, card } of dbCards) {
+        // Clamp any stale 0-based index to slot 1 so it isn't silently dropped.
+        const effectiveOrder = order >= 1 ? order : 1;
         // If two DB projects claim the same slot, append the duplicate at the end
-        if (order >= 1 && order < slots.length && slots[order] === null) {
-          slots[order] = card;
+        if (effectiveOrder < slots.length && slots[effectiveOrder] === null) {
+          slots[effectiveOrder] = card;
         } else {
           dbCardsNoOrder.push(card);
         }
