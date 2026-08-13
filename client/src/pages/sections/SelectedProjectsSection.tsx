@@ -162,7 +162,7 @@ const ProjectCardContent = ({
     <CardContent className="space-y-6 p-0">
       <div
         className={`group relative overflow-hidden rounded ${
-          isLarge ? "h-[440px] lg:h-[500px]" : "h-[360px]"
+          isLarge ? "h-[320px] lg:h-[400px]" : "h-[240px] lg:h-[300px]"
         }`}
       >
         <img
@@ -282,7 +282,7 @@ export const SelectedProjectsSection = (): JSX.Element => {
 
   return (
     <section id="work" className="w-full bg-white px-6 pt-8 pb-16 sm:px-10 sm:pt-10 sm:pb-24 lg:px-20 lg:pt-10 lg:pb-32">
-      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-[30px] lg:gap-20">
+      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-5 lg:gap-12">
         <header className="space-y-4 lg:space-y-5">
           <h2 className="mt-[-1px] [font-family:'Inter',Helvetica] text-4xl font-normal leading-[normal] tracking-[0] text-gray-900 lg:text-5xl">
             Selected Works
@@ -297,24 +297,24 @@ export const SelectedProjectsSection = (): JSX.Element => {
         {featured && <ProjectCard card={featured} index={0} cardOverlay={featured.cardOverlay} />}
 
         {firstPair.length > 0 && (
-          <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,760fr)_minmax(0,480fr)]">
+          <div className="grid items-start gap-5 lg:gap-8 lg:grid-cols-[minmax(0,760fr)_minmax(0,480fr)]">
             {firstPair.map((card, i) => (
               <ProjectCard key={card.slug} card={card} index={1 + i} cardOverlay={card.cardOverlay} />
             ))}
           </div>
         )}
 
-        {solo && <ProjectCard card={solo} index={3} className="pt-10" cardOverlay={solo.cardOverlay} />}
+        {solo && <ProjectCard card={solo} index={3} cardOverlay={solo.cardOverlay} />}
 
         {secondPair.length > 0 && (
-          <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,480fr)_minmax(0,760fr)]">
+          <div className="grid items-start gap-5 lg:gap-8 lg:grid-cols-[minmax(0,480fr)_minmax(0,760fr)]">
             {secondPair.map((card, i) => (
               <ProjectCard key={card.slug} card={card} index={4 + i} cardOverlay={card.cardOverlay} />
             ))}
           </div>
         )}
 
-        {finalSolo && <ProjectCard card={finalSolo} index={6} className="pt-10" cardOverlay={finalSolo.cardOverlay} />}
+        {finalSolo && <ProjectCard card={finalSolo} index={6} cardOverlay={finalSolo.cardOverlay} />}
       </div>
     </section>
   );
