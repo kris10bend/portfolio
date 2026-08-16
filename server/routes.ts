@@ -163,13 +163,25 @@ function fillSlottedSequence<T>(
 
 // ─── Live next-project sequence helper ────────────────────────────────────────
 
-type _SeqEntry = { slug: string; title: string; imageSrc: string; imageAlt: string };
+type _SeqEntry = {
+  slug: string;
+  title: string;
+  imageSrc: string;
+  imageAlt: string;
+  cardOverlay: string | null;
+};
 
 /**
  * Derives the "next project" for any case study page by reading the live
  * homepage sequence from the CMS. Both CMS-backed and static-fallback pages
  * call this, so renaming or reordering a project in the admin is reflected
  * immediately everywhere — no static data file edits required.
+ *
+ * The full homepage sequence (including confidential/password-protected cards)
+ * is used to determine where the current project sits. The "next" pointer then
+ * walks forward and returns the first PUBLICLY navigable project (no overlay).
+ * This means a password-protected project sees a next-project strip pointing to
+ * the next public case study, but is never itself recommended as a destination.
  *
  * Uses fillSlottedSequence so the order is byte-for-byte identical to the
  * homepage listing — including effectiveOrder clamping for legacy 0-based rows.
@@ -182,17 +194,9 @@ async function computeNextProject(
     storage.getAllCmsProjectSlugs(),
   ]);
 
-  // Include cards that are publicly navigable:
-  // - No overlay (fully public)
-  // - confidential + password-protected (navigable via password gate)
-  // Exclude: in_progress (always 404) and confidential with no password (also 404).
-  const visibleCms = homepageProjects.filter(
-    (p) =>
-      p.cardOverlay == null ||
-      (p.cardOverlay === "confidential" && p.projectPasswordHash != null),
-  );
-
-  const cmsOrdered: Array<{ order: number; entry: _SeqEntry }> = visibleCms
+  // Build the full sequence including confidential/password-protected cards so
+  // we can correctly locate the current project's slot in the homepage order.
+  const cmsOrdered: Array<{ order: number; entry: _SeqEntry }> = homepageProjects
     .filter((p) => p.homepageOrder !== null && p.homepageOrder !== undefined)
     .map((p) => ({
       order: p.homepageOrder as number,
@@ -201,16 +205,18 @@ async function computeNextProject(
         title: p.title,
         imageSrc: p.heroImageUrl ?? "",
         imageAlt: p.heroImageAlt ?? p.title,
+        cardOverlay: p.cardOverlay,
       },
     }));
 
-  const cmsUnordered: _SeqEntry[] = visibleCms
+  const cmsUnordered: _SeqEntry[] = homepageProjects
     .filter((p) => p.homepageOrder === null || p.homepageOrder === undefined)
     .map((p) => ({
       slug: p.slug,
       title: p.title,
       imageSrc: p.heroImageUrl ?? "",
       imageAlt: p.heroImageAlt ?? p.title,
+      cardOverlay: p.cardOverlay,
     }));
 
   const staticEntries: _SeqEntry[] = staticProjects
@@ -220,6 +226,7 @@ async function computeNextProject(
       title: sp.title,
       imageSrc: sp.heroImage.src,
       imageAlt: sp.heroImage.alt,
+      cardOverlay: null,
     }));
 
   const sequence = fillSlottedSequence(cmsOrdered, cmsUnordered, staticEntries);
@@ -227,12 +234,21 @@ async function computeNextProject(
   const currentIndex = sequence.findIndex((e) => e.slug === currentSlug);
   if (currentIndex === -1 || sequence.length <= 1) return undefined;
 
-  const nextEntry = sequence[(currentIndex + 1) % sequence.length];
-  return {
-    slug: nextEntry.slug,
-    title: nextEntry.title,
-    image: { src: nextEntry.imageSrc, alt: nextEntry.imageAlt },
-  };
+  // Walk forward from the current slot to find the next publicly navigable
+  // project (no overlay). Confidential and in-progress cards are never
+  // recommended as destinations — skip them.
+  for (let i = 1; i < sequence.length; i++) {
+    const candidate = sequence[(currentIndex + i) % sequence.length];
+    if (candidate.cardOverlay == null) {
+      return {
+        slug: candidate.slug,
+        title: candidate.title,
+        image: { src: candidate.imageSrc, alt: candidate.imageAlt },
+      };
+    }
+  }
+
+  return undefined; // No public project found in the sequence
 }
 
 export async function registerRoutes(
