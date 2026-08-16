@@ -1052,11 +1052,6 @@ export async function registerRoutes(
       // Derive the filename from the verified type, never from originalname
       const filename = `${randomUUID()}${detectedType.ext}`;
 
-      // Persist the file — Object Storage when a bucket is configured (production),
-      // otherwise local disk (development fallback).
-      const { uploadToObjectStorage, isObjectStorageEnabled } = await import("./objectStorage");
-      const savedToCloud = await uploadToObjectStorage(filename, file.buffer);
-
       // For video files, apply -movflags faststart so the moov atom sits before
       // mdat. Without this, browsers must download the entire file before playback
       // can begin. We do this by writing to a temp path first, re-muxing with
@@ -1085,6 +1080,13 @@ export async function registerRoutes(
         }
       }
 
+      // Persist the file — Object Storage when a bucket is configured (production),
+      // otherwise local disk (development fallback). This runs AFTER the
+      // faststart re-mux so the stored object matches the recorded byte size —
+      // that size is later used for Content-Range headers when serving ranges.
+      const { uploadToObjectStorage } = await import("./objectStorage");
+      const savedToCloud = await uploadToObjectStorage(filename, fileBuffer);
+
       if (!savedToCloud) {
         // Fall back to local disk.
         const destPath = path.join(UPLOADS_DIR, filename);
@@ -1103,7 +1105,7 @@ export async function registerRoutes(
           originalName: file.originalname,
           url,
           mimeType: detectedType.mime,
-          size: file.buffer.length,
+          size: fileBuffer.length,
         });
         return res.status(201).json(media);
       } catch (err) {

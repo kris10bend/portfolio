@@ -38,6 +38,7 @@ export interface IStorage {
   createCmsMedia(media: InsertCmsMedia): Promise<CmsMedia>;
   getCmsMedia(): Promise<CmsMedia[]>;
   getCmsMediaById(id: string): Promise<CmsMedia | undefined>;
+  getCmsMediaByFilename(filename: string): Promise<CmsMedia | undefined>;
   deleteCmsMedia(id: string): Promise<void>;
   isMediaReferenced(id: string, url?: string): Promise<boolean>;
 }
@@ -254,6 +255,14 @@ export class DatabaseStorage implements IStorage {
 
   async getCmsMediaById(id: string): Promise<CmsMedia | undefined> {
     const [media] = await db.select().from(cmsMedia).where(eq(cmsMedia.id, id));
+    return media;
+  }
+
+  async getCmsMediaByFilename(filename: string): Promise<CmsMedia | undefined> {
+    const [media] = await db
+      .select()
+      .from(cmsMedia)
+      .where(eq(cmsMedia.filename, filename));
     return media;
   }
 

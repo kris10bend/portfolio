@@ -243,8 +243,13 @@ app.use((req, res, next) => {
       if (process.env.REPLIT_OBJECT_STORAGE_BUCKET_ID) {
         const filename = path.basename(req.path);
         if (filename && filename !== ".") {
-          const { serveFromObjectStorage } = await import("./objectStorage");
-          const served = await serveFromObjectStorage(filename, res);
+          const { serveFromObjectStorage, resolveUploadSize } = await import("./objectStorage");
+          // Look up the file's byte size (cms_media record, falling back to
+          // the local uploads/ copy for legacy/migrated files) so range
+          // requests can be served with correct Content-Range headers —
+          // required for <video> buffering/seeking in browsers.
+          const fileSize = await resolveUploadSize(filename, uploadsDir);
+          const served = await serveFromObjectStorage(filename, req, res, fileSize);
           if (served) return;
         }
       }
