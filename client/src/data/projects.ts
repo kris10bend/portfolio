@@ -75,15 +75,6 @@ export const projects: ProjectData[] = [
     ],
     metaDescription:
       "Bringing forty years of UAE–China partnership to life through shared stories and public participation.",
-    nextProject: {
-      slug: "journey-to-net-zero",
-      title: "Journey to Net Zero",
-      image: {
-        src: "/figmaAssets/project-journey-to-net-zero/next-project.png",
-        alt: "Journey to Net Zero next project placeholder",
-        isPlaceholder: true,
-      },
-    },
   },
   {
     slug: "journey-to-net-zero",
@@ -168,15 +159,6 @@ export const projects: ProjectData[] = [
     ],
     metaDescription:
       "Bringing the UAE\u2019s vision for a net zero future to life at COP28.",
-    nextProject: {
-      slug: "designing-better-futures",
-      title: "Designing Better Futures",
-      image: {
-        src: "/figmaAssets/project-designing-better-futures/next-project.png",
-        alt: "Designing Better Futures next project placeholder",
-        isPlaceholder: true,
-      },
-    },
   },
   {
     slug: "designing-better-futures",
@@ -257,15 +239,6 @@ export const projects: ProjectData[] = [
     ],
     metaDescription:
       "Case study confidential, please reach out for information.",
-    nextProject: {
-      slug: "expo-2020",
-      title: "Expo 2020",
-      image: {
-        src: "/figmaAssets/project-expo-2020/next-project.png",
-        alt: "Expo 2020 next project placeholder",
-        isPlaceholder: true,
-      },
-    },
   },
   {
     slug: "expo-2020",
@@ -350,15 +323,6 @@ export const projects: ProjectData[] = [
     ],
     metaDescription:
       "Translating breakthrough ideas into an exhibition celebrating the UAE\u2019s innovators at Expo 2020 Dubai.",
-    nextProject: {
-      slug: "collective-intelligence",
-      title: "Collective Intelligence",
-      image: {
-        src: "/figmaAssets/project-collective-intelligence/next-project.png",
-        alt: "Collective Intelligence next project placeholder",
-        isPlaceholder: true,
-      },
-    },
   },
   {
     slug: "collective-intelligence",
@@ -443,15 +407,6 @@ export const projects: ProjectData[] = [
     ],
     metaDescription:
       "Transforming employee insights into collective action through human-AI collaboration.",
-    nextProject: {
-      slug: "radical-imagination",
-      title: "Radical Imagination",
-      image: {
-        src: "/figmaAssets/project-radical-imagination/next-project.png",
-        alt: "Radical Imagination next project placeholder",
-        isPlaceholder: true,
-      },
-    },
   },
   {
     slug: "radical-imagination",
@@ -536,15 +491,6 @@ export const projects: ProjectData[] = [
     ],
     metaDescription:
       "Designing an interactive studio to build radical imagination in the age of AI.",
-    nextProject: {
-      slug: "vibe-camp",
-      title: "Vibe Camp",
-      image: {
-        src: "/figmaAssets/project-vibe-camp/next-project.png",
-        alt: "Vibe Camp next project placeholder",
-        isPlaceholder: true,
-      },
-    },
   },
   {
     slug: "vibe-camp",
@@ -629,15 +575,6 @@ export const projects: ProjectData[] = [
     ],
     metaDescription:
       "Helping teams build together in the era of AI collaboration.",
-    nextProject: {
-      slug: "building-bridges",
-      title: "Building Bridges for the Future",
-      // Building Bridges has real photography — reuse its hero as the teaser
-      image: {
-        src: "/figmaAssets/project-uae-china/hero.png",
-        alt: "Building Bridges for the Future",
-      },
-    },
   },
 ];
 

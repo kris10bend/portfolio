@@ -111,6 +111,123 @@ const unlockRateLimiter = rateLimit({
   message: { ok: false, error: "Too many attempts. Please wait a few minutes and try again." },
 });
 
+// ─── Shared positional-interleave helper ─────────────────────────────────────
+
+/**
+ * Slots ordered entries into a sparse 1-based array, then fills empty slots
+ * with static fallback entries left-to-right, and appends any unordered or
+ * overflow entries at the end. This is the single source of truth for the
+ * homepage sequence algorithm — used by both GET /api/projects and the
+ * next-project computation so they are guaranteed to produce identical order.
+ *
+ * @param ordered   Entries with an explicit 1-based position (homepageOrder).
+ *                  Orders < 1 are clamped to slot 1 (stale 0-indexed records).
+ * @param unordered Entries with no explicit position.
+ * @param statics   Static fallback entries filling empty slots left-to-right.
+ */
+function fillSlottedSequence<T>(
+  ordered: ReadonlyArray<{ order: number; entry: T }>,
+  unordered: ReadonlyArray<T>,
+  statics: ReadonlyArray<T>,
+): T[] {
+  const maxSlot = Math.max(
+    0,
+    ...ordered.map((d) => d.order),
+    ordered.length + statics.length + unordered.length,
+  );
+  const slots: (T | null)[] = new Array(maxSlot + 1).fill(null);
+  const overflowOrdered: T[] = [];
+  for (const { order, entry } of ordered) {
+    // Clamp any stale 0-based (or negative) index to slot 1 so it is never
+    // silently dropped — identical to the effectiveOrder logic in GET /api/projects.
+    const effectiveOrder = order >= 1 ? order : 1;
+    if (effectiveOrder < slots.length && slots[effectiveOrder] === null) {
+      slots[effectiveOrder] = entry;
+    } else {
+      overflowOrdered.push(entry);
+    }
+  }
+  const result: T[] = [];
+  let si = 0;
+  for (let i = 1; i < slots.length; i++) {
+    if (slots[i] !== null) {
+      result.push(slots[i] as T);
+    } else if (si < statics.length) {
+      result.push(statics[si++] as T);
+    }
+  }
+  while (si < statics.length) result.push(statics[si++] as T);
+  result.push(...unordered, ...overflowOrdered);
+  return result;
+}
+
+// ─── Live next-project sequence helper ────────────────────────────────────────
+
+type _SeqEntry = { slug: string; title: string; imageSrc: string; imageAlt: string };
+
+/**
+ * Derives the "next project" for any case study page by reading the live
+ * homepage sequence from the CMS. Both CMS-backed and static-fallback pages
+ * call this, so renaming or reordering a project in the admin is reflected
+ * immediately everywhere — no static data file edits required.
+ *
+ * Uses fillSlottedSequence so the order is byte-for-byte identical to the
+ * homepage listing — including effectiveOrder clamping for legacy 0-based rows.
+ */
+async function computeNextProject(
+  currentSlug: string,
+): Promise<{ slug: string; title: string; image: ProjectImageAsset } | undefined> {
+  const [homepageProjects, allDbSlugs] = await Promise.all([
+    storage.getPublishedHomepageProjects(),
+    storage.getAllCmsProjectSlugs(),
+  ]);
+
+  // Exclude confidential/in-progress cards — they are not publicly navigable.
+  const visibleCms = homepageProjects.filter((p) => p.cardOverlay == null);
+
+  const cmsOrdered: Array<{ order: number; entry: _SeqEntry }> = visibleCms
+    .filter((p) => p.homepageOrder !== null && p.homepageOrder !== undefined)
+    .map((p) => ({
+      order: p.homepageOrder as number,
+      entry: {
+        slug: p.slug,
+        title: p.title,
+        imageSrc: p.heroImageUrl ?? "",
+        imageAlt: p.heroImageAlt ?? p.title,
+      },
+    }));
+
+  const cmsUnordered: _SeqEntry[] = visibleCms
+    .filter((p) => p.homepageOrder === null || p.homepageOrder === undefined)
+    .map((p) => ({
+      slug: p.slug,
+      title: p.title,
+      imageSrc: p.heroImageUrl ?? "",
+      imageAlt: p.heroImageAlt ?? p.title,
+    }));
+
+  const staticEntries: _SeqEntry[] = staticProjects
+    .filter((sp) => !allDbSlugs.has(sp.slug))
+    .map((sp) => ({
+      slug: sp.slug,
+      title: sp.title,
+      imageSrc: sp.heroImage.src,
+      imageAlt: sp.heroImage.alt,
+    }));
+
+  const sequence = fillSlottedSequence(cmsOrdered, cmsUnordered, staticEntries);
+
+  const currentIndex = sequence.findIndex((e) => e.slug === currentSlug);
+  if (currentIndex === -1 || sequence.length <= 1) return undefined;
+
+  const nextEntry = sequence[(currentIndex + 1) % sequence.length];
+  return {
+    slug: nextEntry.slug,
+    title: nextEntry.title,
+    image: { src: nextEntry.imageSrc, alt: nextEntry.imageAlt },
+  };
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -309,47 +426,33 @@ export async function registerRoutes(
         featuredSquareCropZoom?: number | null;
       };
 
+      // Helper to map a DB project row into a homepage card
+      const toCard = (p: typeof dbProjects[number]): ProjectCard => ({
+        slug: p.slug,
+        title: p.title.replace(/\n/g, " "),
+        excerpt: p.metaDescription ?? ((p.description as string[] | null)?.[0] ?? ""),
+        heroImageSrc: p.featuredImageUrl || p.heroImageUrl || "",
+        heroImageAlt: p.featuredImageAlt || p.heroImageAlt || "",
+        cardOverlay: (p.cardOverlay as 'in_progress' | 'confidential' | null) ?? null,
+        ...(p.projectPasswordHash != null ? { isPasswordProtected: true } : {}),
+        ...(p.featuredImageUrl ? { featuredImageUrl: p.featuredImageUrl } : {}),
+        ...(p.featuredImageAlt ? { featuredImageAlt: p.featuredImageAlt } : {}),
+        ...(p.featuredImageObjectPosition ? { featuredImageObjectPosition: p.featuredImageObjectPosition } : {}),
+        ...(p.featuredImageZoom !== null && p.featuredImageZoom !== undefined ? { featuredImageZoom: p.featuredImageZoom } : {}),
+        featuredSquareCropX: p.featuredSquareCropX ?? null,
+        featuredSquareCropY: p.featuredSquareCropY ?? null,
+        featuredSquareCropZoom: p.featuredSquareCropZoom ?? null,
+      });
+
       // Build homepage card entries from DB records, recording their target slot
-      const dbCards: Array<{ order: number; card: ProjectCard }> = dbProjects
+      const dbCardsOrdered: Array<{ order: number; entry: ProjectCard }> = dbProjects
         .filter((p) => p.homepageOrder !== null && p.homepageOrder !== undefined)
-        .map((p) => ({
-          order: p.homepageOrder as number,
-          card: {
-            slug: p.slug,
-            title: p.title.replace(/\n/g, " "),
-            excerpt: p.metaDescription ?? ((p.description as string[] | null)?.[0] ?? ""),
-            heroImageSrc: p.featuredImageUrl || p.heroImageUrl || "",
-            heroImageAlt: p.featuredImageAlt || p.heroImageAlt || "",
-            cardOverlay: (p.cardOverlay as 'in_progress' | 'confidential' | null) ?? null,
-            ...(p.projectPasswordHash != null ? { isPasswordProtected: true } : {}),
-            ...(p.featuredImageUrl ? { featuredImageUrl: p.featuredImageUrl } : {}),
-            ...(p.featuredImageAlt ? { featuredImageAlt: p.featuredImageAlt } : {}),
-            ...(p.featuredImageObjectPosition ? { featuredImageObjectPosition: p.featuredImageObjectPosition } : {}),
-            ...(p.featuredImageZoom !== null && p.featuredImageZoom !== undefined ? { featuredImageZoom: p.featuredImageZoom } : {}),
-            featuredSquareCropX: p.featuredSquareCropX ?? null,
-            featuredSquareCropY: p.featuredSquareCropY ?? null,
-            featuredSquareCropZoom: p.featuredSquareCropZoom ?? null,
-          },
-        }));
+        .map((p) => ({ order: p.homepageOrder as number, entry: toCard(p) }));
+
       // DB projects without a homepageOrder are appended at the end
       const dbCardsNoOrder: ProjectCard[] = dbProjects
         .filter((p) => p.homepageOrder === null || p.homepageOrder === undefined)
-        .map((p) => ({
-          slug: p.slug,
-          title: p.title.replace(/\n/g, " "),
-          excerpt: p.metaDescription ?? ((p.description as string[] | null)?.[0] ?? ""),
-          heroImageSrc: p.featuredImageUrl || p.heroImageUrl || "",
-          heroImageAlt: p.featuredImageAlt || p.heroImageAlt || "",
-          cardOverlay: (p.cardOverlay as 'in_progress' | 'confidential' | null) ?? null,
-          ...(p.projectPasswordHash != null ? { isPasswordProtected: true } : {}),
-          ...(p.featuredImageUrl ? { featuredImageUrl: p.featuredImageUrl } : {}),
-          ...(p.featuredImageAlt ? { featuredImageAlt: p.featuredImageAlt } : {}),
-          ...(p.featuredImageObjectPosition ? { featuredImageObjectPosition: p.featuredImageObjectPosition } : {}),
-          ...(p.featuredImageZoom !== null && p.featuredImageZoom !== undefined ? { featuredImageZoom: p.featuredImageZoom } : {}),
-          featuredSquareCropX: p.featuredSquareCropX ?? null,
-          featuredSquareCropY: p.featuredSquareCropY ?? null,
-          featuredSquareCropZoom: p.featuredSquareCropZoom ?? null,
-        }));
+        .map(toCard);
 
       // Static cards whose slugs have NO DB record at all
       const staticCards: ProjectCard[] = staticProjects
@@ -363,39 +466,10 @@ export async function registerRoutes(
           cardOverlay: null,
         }));
 
-      // ── Positional interleave ─────────────────────────────────────────────
-      // Reserve slots for DB-ordered projects; fill gaps with static projects.
-      const maxSlot = Math.max(
-        0,
-        ...dbCards.map((d) => d.order),
-        dbCards.length + staticCards.length + dbCardsNoOrder.length
-      );
-      // Build a sparse slot map (1-indexed → card)
-      const slots: (ProjectCard | null)[] = new Array(maxSlot + 1).fill(null);
-      for (const { order, card } of dbCards) {
-        // Clamp any stale 0-based index to slot 1 so it isn't silently dropped.
-        const effectiveOrder = order >= 1 ? order : 1;
-        // If two DB projects claim the same slot, append the duplicate at the end
-        if (effectiveOrder < slots.length && slots[effectiveOrder] === null) {
-          slots[effectiveOrder] = card;
-        } else {
-          dbCardsNoOrder.push(card);
-        }
-      }
-
-      // Walk slots 1..maxSlot; fill nulls with static cards in order
-      const result: ProjectCard[] = [];
-      let staticIdx = 0;
-      for (let i = 1; i < slots.length; i++) {
-        if (slots[i] !== null) {
-          result.push(slots[i] as ProjectCard);
-        } else if (staticIdx < staticCards.length) {
-          result.push(staticCards[staticIdx++]);
-        }
-      }
-      // Append any remaining static cards and unordered DB cards
-      while (staticIdx < staticCards.length) result.push(staticCards[staticIdx++]);
-      result.push(...dbCardsNoOrder);
+      // ── Positional interleave via shared helper ───────────────────────────
+      // fillSlottedSequence guarantees the same effectiveOrder clamping and
+      // duplicate-slot behavior as the next-project sequence computation.
+      const result = fillSlottedSequence(dbCardsOrdered, dbCardsNoOrder, staticCards);
 
       return res.json(result);
     } catch (err) {
@@ -431,45 +505,9 @@ export async function registerRoutes(
           return res.status(404).json({ error: "Project not found" });
         }
 
-        // Derive next-project data from the target's own hero image,
-        // and suppress the section if the target project is not reachable.
-        let transformedNextProject: typeof staticProject.nextProject | undefined;
-        if (staticProject.nextProject) {
-          const nextSlug = staticProject.nextProject.slug;
-          const [nextDbPublished, nextDbAny] = await Promise.all([
-            storage.getPublishedCmsProjectBySlug(nextSlug),
-            storage.getCmsProjectBySlugAny(nextSlug),
-          ]);
-          if (nextDbPublished && nextDbPublished.showOnHomepage && nextDbPublished.cardOverlay == null) {
-            // Target is a published, publicly-visible CMS project — use its hero image
-            transformedNextProject = {
-              slug: nextSlug,
-              title: nextDbPublished.title,
-              image: {
-                src: nextDbPublished.heroImageUrl ?? "",
-                alt: nextDbPublished.heroImageAlt ?? nextDbPublished.title,
-              },
-            };
-          } else if (!nextDbAny) {
-            // Target is a static project (not in CMS at all) — derive hero image
-            const nextStaticProject = staticProjects.find((p) => p.slug === nextSlug);
-            if (nextStaticProject) {
-              transformedNextProject = {
-                slug: nextSlug,
-                title: nextStaticProject.title,
-                image: {
-                  src: nextStaticProject.heroImage.src,
-                  alt: nextStaticProject.heroImage.alt,
-                  ...(nextStaticProject.heroImage.isPlaceholder
-                    ? { isPlaceholder: true }
-                    : {}),
-                },
-              };
-            }
-          }
-          // If target is a draft/archived CMS record, transformedNextProject
-          // remains undefined → the section is omitted from the response.
-        }
+        // Derive next-project from the live CMS sequence so any rename or
+        // reorder in the admin is reflected immediately.
+        const transformedNextProject = await computeNextProject(slug);
 
         return res.json({
           ...staticProject,
@@ -514,92 +552,8 @@ export async function registerRoutes(
         .map((b) => blockToGalleryBlock(b.type, b.payload))
         .filter((g): g is GalleryBlock => g !== null);
 
-      // Auto-compute next project from the full navigable homepage sequence.
-      // The sequence mirrors the public homepage order: CMS projects placed at
-      // their homepageOrder slots, static projects filling the gaps — same
-      // interleaving algorithm as GET /api/projects. CMS projects with a
-      // cardOverlay are excluded (they are not publicly reachable). The section
-      // is omitted when the current project is the only entry in the sequence.
-      let nextProject: { slug: string; title: string; image: ProjectImageAsset } | undefined;
-      {
-        type SeqEntry = { slug: string; title: string; imageSrc: string; imageAlt: string };
-
-        const [homepageProjects, allDbSlugs] = await Promise.all([
-          storage.getPublishedHomepageProjects(),
-          storage.getAllCmsProjectSlugs(),
-        ]);
-
-        // CMS entries: exclude those with a cardOverlay (not publicly reachable)
-        const visibleCms = homepageProjects.filter((p) => p.cardOverlay == null);
-
-        const cmsOrdered: Array<{ order: number; entry: SeqEntry }> = visibleCms
-          .filter((p) => p.homepageOrder !== null && p.homepageOrder !== undefined)
-          .map((p) => ({
-            order: p.homepageOrder as number,
-            entry: {
-              slug: p.slug,
-              title: p.title,
-              imageSrc: p.heroImageUrl ?? "",
-              imageAlt: p.heroImageAlt ?? p.title,
-            },
-          }));
-
-        const cmsUnordered: SeqEntry[] = visibleCms
-          .filter((p) => p.homepageOrder === null || p.homepageOrder === undefined)
-          .map((p) => ({
-            slug: p.slug,
-            title: p.title,
-            imageSrc: p.heroImageUrl ?? "",
-            imageAlt: p.heroImageAlt ?? p.title,
-          }));
-
-        // Static entries: slugs with no DB record at all (never have a cardOverlay)
-        const staticEntries: SeqEntry[] = staticProjects
-          .filter((sp) => !allDbSlugs.has(sp.slug))
-          .map((sp) => ({
-            slug: sp.slug,
-            title: sp.title,
-            imageSrc: sp.heroImage.src,
-            imageAlt: sp.heroImage.alt,
-          }));
-
-        // Positional interleave — same algorithm as GET /api/projects
-        const maxSlot = Math.max(
-          0,
-          ...cmsOrdered.map((d) => d.order),
-          cmsOrdered.length + staticEntries.length + cmsUnordered.length
-        );
-        const slots: (SeqEntry | null)[] = new Array(maxSlot + 1).fill(null);
-        for (const { order, entry } of cmsOrdered) {
-          if (order >= 1 && order < slots.length && slots[order] === null) {
-            slots[order] = entry;
-          } else {
-            cmsUnordered.push(entry);
-          }
-        }
-
-        const sequence: SeqEntry[] = [];
-        let staticIdx = 0;
-        for (let i = 1; i < slots.length; i++) {
-          if (slots[i] !== null) {
-            sequence.push(slots[i] as SeqEntry);
-          } else if (staticIdx < staticEntries.length) {
-            sequence.push(staticEntries[staticIdx++]);
-          }
-        }
-        while (staticIdx < staticEntries.length) sequence.push(staticEntries[staticIdx++]);
-        sequence.push(...cmsUnordered);
-
-        const currentIndex = sequence.findIndex((e) => e.slug === slug);
-        if (currentIndex !== -1 && sequence.length > 1) {
-          const nextEntry = sequence[(currentIndex + 1) % sequence.length];
-          nextProject = {
-            slug: nextEntry.slug,
-            title: nextEntry.title,
-            image: { src: nextEntry.imageSrc, alt: nextEntry.imageAlt },
-          };
-        }
-      }
+      // Compute next project from the live CMS homepage sequence.
+      const nextProject = await computeNextProject(slug);
 
       const metadata = (dbProject.metadata ?? {}) as {
         client?: string;
