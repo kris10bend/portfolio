@@ -61,13 +61,22 @@ function slotSizes(index: number): { imageHeight: ImageHeight; titleSize: TitleS
 /**
  * variant="overlay"  — white text/inputs on blue background (inside the image overlay)
  * variant="inline"   — dark text/inputs on light background (below the card title)
+ * isVisible          — when true, auto-focuses the input (used for touch-toggle)
  */
-function CardPasswordForm({ slug, variant = "overlay" }: { slug: string; variant?: "overlay" | "inline" }) {
+function CardPasswordForm({ slug, variant = "overlay", isVisible = false }: { slug: string; variant?: "overlay" | "inline"; isVisible?: boolean }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [, navigate] = useLocation();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus when the overlay becomes visible on touch devices.
+  useEffect(() => {
+    if (isVisible && variant === "overlay") {
+      const t = setTimeout(() => inputRef.current?.focus(), 60);
+      return () => clearTimeout(t);
+    }
+  }, [isVisible, variant]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -219,10 +228,12 @@ const ProjectCardContent = ({
           </div>
         )}
         {isConfidentialWithPassword && (
-          <div className={`absolute inset-0 flex items-center justify-center bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100 ${touchVisibleClass}`}>
-            <p className="max-w-[260px] text-center text-[13px] font-normal leading-[1.6] text-white [font-family:'Geist',Helvetica] tracking-[0.01em]">
-              Confidential project
+          /* focus-within keeps the overlay open while the user is typing */
+          <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-within:opacity-100 ${touchVisibleClass}`}>
+            <p className="text-[13px] font-normal text-white/80 [font-family:'Geist',Helvetica] tracking-[0.01em]">
+              Enter password to view
             </p>
+            <CardPasswordForm slug={card.slug} variant="overlay" isVisible={overlayVisible} />
           </div>
         )}
       </div>
@@ -239,9 +250,6 @@ const ProjectCardContent = ({
         <p className="[font-family:'Geist',Helvetica] text-sm font-normal leading-[21px] tracking-[0] text-gray-700">
           {card.excerpt}
         </p>
-        {isConfidentialWithPassword && (
-          <CardPasswordForm slug={card.slug} variant="inline" />
-        )}
       </div>
     </CardContent>
   );
