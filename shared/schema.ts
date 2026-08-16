@@ -122,3 +122,11 @@ export const insertCmsMediaSchema = createInsertSchema(cmsMedia).omit({
 
 export type InsertCmsMedia = z.infer<typeof insertCmsMediaSchema>;
 export type CmsMedia = typeof cmsMedia.$inferSelect;
+
+// ─── migrations_log ───────────────────────────────────────────────────────────
+// Tracks one-time data migrations run at startup so they never repeat.
+
+export const migrationsLog = pgTable("migrations_log", {
+  name: text("name").primaryKey(),
+  ranAt: timestamp("ran_at").notNull().default(sql`now()`),
+});
