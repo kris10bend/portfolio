@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import { ContainerLayout } from "@/components/ContainerLayout";
 
 export const PortfolioFooterSection = (): JSX.Element => {
@@ -19,6 +20,22 @@ export const PortfolioFooterSection = (): JSX.Element => {
               that help people see possibility.
             </p>
           </section>
+          <nav className="flex flex-col items-end gap-4 pt-1">
+            <Link
+              href="/contact"
+              className="[font-family:'Geist',Helvetica] text-sm font-normal tracking-[0] text-white opacity-80 transition-opacity hover:opacity-100"
+            >
+              Contact
+            </Link>
+            <a
+              href="https://www.linkedin.com/in/kristenbend/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="[font-family:'Geist',Helvetica] text-sm font-normal tracking-[0] text-white opacity-80 transition-opacity hover:opacity-100"
+            >
+              LinkedIn
+            </a>
+          </nav>
         </div>
         <div className="flex w-full items-center justify-center pt-4">
           <p className="[font-family:'Geist',Helvetica] text-xs font-normal leading-none tracking-[0] text-[#ffffffcc]">
