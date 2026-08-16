@@ -1,0 +1,163 @@
+I need you to debug a production media-rendering issue on my portfolio site. This is NOT a request to redesign the site or simply replace the videos. I need you to find the actual root cause of why certain video/GIF assets are not displaying after deployment, fix the underlying issue, and verify the fix on the published site.
+
+Published site:
+https://kristenbend.com/
+
+Known broken examples:
+
+1. https://kristenbend.com/work/building-bridges
+2. https://kristenbend.com/work/journey-to-net-zero
+3. https://kristenbend.com/work/collective_intelligence_2
+
+What I am seeing
+
+Some media elements render as a large black/dark video player with controls, but the actual media never loads or plays. The player shows 0:00.
+
+Other images and media on the same project pages load correctly.
+
+This happens on multiple project pages, so I suspect there is a systemic issue with how certain video/GIF assets are referenced, served, encoded, or handled in the production build.
+
+I have already asked for this to be fixed multiple times, so please DO NOT make another superficial change without determining why the affected assets fail.
+
+1. Inspect the implementation
+
+* Find the exact components/data/configuration responsible for rendering video and GIF media on these project pages.
+* Identify the exact source file/path/URL being used for every broken media element.
+* Compare the broken media implementation with video/media elements elsewhere on the site that DO work.
+* Determine whether the affected files are local assets, public/static assets, remote URLs, imported files, or some combination.
+
+2. Check the actual production behavior
+
+Test the published URLs above, not just the local development environment.
+
+Use the browser console and Network tab, or equivalent tooling, to determine what happens when each broken media asset is requested.
+
+Look specifically for:
+
+* 404 or 403 errors
+* incorrect asset paths
+* failed requests
+* MIME-type errors
+* CORS problems
+* unsupported codecs
+* range-request issues
+* incorrect Content-Type headers
+* deployment/static-file problems
+* JavaScript errors
+* files that exist locally but are missing from the production deployment
+
+Check whether the browser is actually receiving the media file and, if so, whether the browser can decode it.
+
+Check the HTTP response headers for the affected media files, especially:
+
+* Content-Type
+* Content-Length
+* Content-Range
+* Accept-Ranges
+* status codes
+* caching headers
+
+If possible, inspect the actual deployed asset rather than assuming the source file is identical to the production file.
+
+3. Inspect the media files themselves
+
+Determine the actual format/container and codec of each broken video.
+
+Check:
+
+* resolution
+* frame rate
+* duration
+* file size
+* audio/video streams
+* container format
+* codec
+
+Pay particular attention to whether files are:
+
+* .mp4
+* .mov
+* .webm
+* animated GIF
+* another format
+
+If a file is technically valid but encoded in a way that common browsers cannot reliably play, explain that clearly.
+
+DO NOT blindly re-encode every media asset. Only do so if the investigation shows that encoding/codec compatibility is actually the cause.
+
+4. Check deployment/static asset handling
+
+Verify that the files actually exist in the deployed build.
+
+Check whether:
+
+* filenames contain spaces
+* capitalization differs between the source and production path
+* special characters are causing issues
+* extensions are being handled incorrectly
+* the build system is moving or hashing files
+* files are being excluded from the production build
+* the current code uses paths that work locally but break after deployment
+* assets are located in the correct public/static directory for this project/framework
+
+I specifically want you to look for the classic situation where an asset path works in the Replit preview but fails on the published production domain.
+
+5. Check the GIF/video distinction
+
+One of the affected examples is media associated with the Collective Intelligence 2 project, and some of these assets may be GIFs or video files.
+
+Determine whether the site is:
+
+* treating an animated GIF as a video
+* treating a video as an image
+* using the wrong rendering element
+* incorrectly detecting the media type
+* passing the wrong source/path to the media component
+
+If a GIF is being rendered incorrectly, fix the media-type detection/rendering logic rather than replacing the asset unnecessarily.
+
+If the site would be more reliable using MP4/WebM for an animated asset, only recommend that if your investigation shows that this is actually the problem.
+
+6. Make the smallest robust fix
+
+Once you identify the root cause:
+
+* Fix the underlying implementation/configuration.
+* Preserve the current visual design.
+* Preserve layout, captions, sizing, cropping, controls, and responsive behavior.
+* Do not remove media.
+* Do not substitute placeholder images.
+* Do not hide the broken players just to make the page look fixed.
+* Do not rewrite unrelated parts of the site.
+* Make the solution reusable so future project pages using video/GIF assets do not have the same problem.
+
+7. Verify the fix in production
+
+After making the change:
+
+* Build/deploy the site.
+* Test all three URLs above on the published production site.
+* Confirm that every affected media element actually loads and plays/animates, rather than merely rendering a player.
+* Test on desktop Chrome and Safari if possible.
+* Check the browser console and Network requests again to make sure there are no remaining media-loading errors.
+* Check at least one media element elsewhere on the site that was already working, to make sure your fix did not break existing media.
+
+IMPORTANT
+
+Before changing code, tell me what you believe the root cause is and what evidence you found.
+
+I want a diagnosis, not trial-and-error edits.
+
+Do not tell me simply that “the video path may be incorrect.” Identify the actual affected file, the actual request being made, what the production server returns, and why the browser cannot display it.
+
+At the end, give me a concise report with:
+
+1. Root cause
+2. Evidence that confirmed it
+3. Files/components changed
+4. Exact fix made
+5. Production URLs tested
+6. Whether each previously broken media element now works
+7. Any remaining issues or recommendations
+
+Do not consider this task complete until you have verified the actual published site, not just the local preview.
