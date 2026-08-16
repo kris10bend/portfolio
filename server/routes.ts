@@ -1057,11 +1057,39 @@ export async function registerRoutes(
       const { uploadToObjectStorage, isObjectStorageEnabled } = await import("./objectStorage");
       const savedToCloud = await uploadToObjectStorage(filename, file.buffer);
 
+      // For video files, apply -movflags faststart so the moov atom sits before
+      // mdat. Without this, browsers must download the entire file before playback
+      // can begin. We do this by writing to a temp path first, re-muxing with
+      // ffmpeg (stream-copy, no re-encoding), then moving to the final path.
+      let fileBuffer = file.buffer;
+      if (detectedType.ext === ".mp4" || detectedType.ext === ".webm") {
+        try {
+          const { execFile } = await import("child_process");
+          const { promisify } = await import("util");
+          const execFileAsync = promisify(execFile);
+          const tmpIn = path.join(UPLOADS_DIR, `_tmp_in_${filename}`);
+          const tmpOut = path.join(UPLOADS_DIR, `_tmp_out_${filename}`);
+          await fsp.writeFile(tmpIn, fileBuffer);
+          await execFileAsync("ffmpeg", [
+            "-y", "-i", tmpIn,
+            "-c", "copy",
+            "-movflags", "faststart",
+            tmpOut,
+          ]);
+          fileBuffer = await fsp.readFile(tmpOut);
+          await fsp.unlink(tmpIn).catch(() => {});
+          await fsp.unlink(tmpOut).catch(() => {});
+        } catch (fsErr) {
+          // Non-fatal: if ffmpeg isn't available, fall back to original buffer.
+          console.warn("faststart re-mux failed (non-fatal), storing original:", fsErr);
+        }
+      }
+
       if (!savedToCloud) {
         // Fall back to local disk.
         const destPath = path.join(UPLOADS_DIR, filename);
         try {
-          await fsp.writeFile(destPath, file.buffer);
+          await fsp.writeFile(destPath, fileBuffer);
         } catch (err) {
           console.error("Failed to write upload to disk:", err);
           return res.status(500).json({ error: "Failed to save uploaded file" });
