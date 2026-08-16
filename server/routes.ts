@@ -182,8 +182,15 @@ async function computeNextProject(
     storage.getAllCmsProjectSlugs(),
   ]);
 
-  // Exclude confidential/in-progress cards — they are not publicly navigable.
-  const visibleCms = homepageProjects.filter((p) => p.cardOverlay == null);
+  // Include cards that are publicly navigable:
+  // - No overlay (fully public)
+  // - confidential + password-protected (navigable via password gate)
+  // Exclude: in_progress (always 404) and confidential with no password (also 404).
+  const visibleCms = homepageProjects.filter(
+    (p) =>
+      p.cardOverlay == null ||
+      (p.cardOverlay === "confidential" && p.projectPasswordHash != null),
+  );
 
   const cmsOrdered: Array<{ order: number; entry: _SeqEntry }> = visibleCms
     .filter((p) => p.homepageOrder !== null && p.homepageOrder !== undefined)
