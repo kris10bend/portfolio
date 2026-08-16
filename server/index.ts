@@ -78,6 +78,39 @@ app.use((req, res, next) => {
     process.exit(1);
   }
 
+  // ── Auto-seed if the database is empty ─────────────────────────────────────
+  // On a fresh production deployment the CMS tables exist (drizzle-kit push
+  // just created them) but hold no rows. Load the bundled seed.sql snapshot
+  // so the live site shows real content without any manual step.
+  // Idempotent: skipped immediately once cms_projects has at least one row.
+  try {
+    const { pool } = await import("./db");
+    const { rows: existingRows } = await pool.query(
+      "SELECT 1 FROM cms_projects LIMIT 1"
+    );
+    if (existingRows.length === 0) {
+      const seedPath = path.resolve(process.cwd(), "server/seed.sql");
+      if (fs.existsSync(seedPath)) {
+        console.log("Database empty — seeding from server/seed.sql…");
+        const seedSql = fs.readFileSync(seedPath, "utf8");
+        // Each INSERT is on its own line (pg_dump --inserts format).
+        const stmts = seedSql
+          .split("\n")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0 && !s.startsWith("--") && !s.startsWith("\\"));
+        for (const stmt of stmts) {
+          await pool.query(stmt);
+        }
+        console.log(`Seeded ${stmts.length} rows from seed.sql.`);
+      } else {
+        console.warn("server/seed.sql not found — skipping auto-seed.");
+      }
+    }
+  } catch (err) {
+    // Non-fatal: the app still works with static fallback data.
+    console.warn("Auto-seed failed (non-fatal):", err);
+  }
+
   // One-time idempotent migration: fix homepage_order values so that:
   //   (a) any row with homepage_order = 0 or negative is set to NULL
   //   (b) remaining ordered rows are renumbered contiguously 1, 2, 3…
