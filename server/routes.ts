@@ -1051,13 +1051,21 @@ export async function registerRoutes(
 
       // Derive the filename from the verified type, never from originalname
       const filename = `${randomUUID()}${detectedType.ext}`;
-      const destPath = path.join(UPLOADS_DIR, filename);
 
-      try {
-        await fsp.writeFile(destPath, file.buffer);
-      } catch (err) {
-        console.error("Failed to write upload to disk:", err);
-        return res.status(500).json({ error: "Failed to save uploaded file" });
+      // Persist the file — Object Storage when a bucket is configured (production),
+      // otherwise local disk (development fallback).
+      const { uploadToObjectStorage, isObjectStorageEnabled } = await import("./objectStorage");
+      const savedToCloud = await uploadToObjectStorage(filename, file.buffer);
+
+      if (!savedToCloud) {
+        // Fall back to local disk.
+        const destPath = path.join(UPLOADS_DIR, filename);
+        try {
+          await fsp.writeFile(destPath, file.buffer);
+        } catch (err) {
+          console.error("Failed to write upload to disk:", err);
+          return res.status(500).json({ error: "Failed to save uploaded file" });
+        }
       }
 
       try {
@@ -1072,8 +1080,13 @@ export async function registerRoutes(
         return res.status(201).json(media);
       } catch (err) {
         console.error("POST /api/admin/media/upload error:", err);
-        // Best-effort cleanup if DB write fails
-        fsp.unlink(destPath).catch(() => {});
+        // Best-effort cleanup
+        if (savedToCloud) {
+          const { deleteFromObjectStorage } = await import("./objectStorage");
+          deleteFromObjectStorage(filename).catch(() => {});
+        } else {
+          fsp.unlink(path.join(UPLOADS_DIR, filename)).catch(() => {});
+        }
         return res.status(500).json({ error: "Failed to save media record" });
       }
     }
@@ -1105,7 +1118,9 @@ export async function registerRoutes(
         });
       }
       await storage.deleteCmsMedia(id);
-      // Best-effort file removal; ignore errors if file is already gone
+      // Best-effort cleanup from both Object Storage and local disk.
+      const { deleteFromObjectStorage } = await import("./objectStorage");
+      deleteFromObjectStorage(media.filename).catch(() => {});
       const filePath = path.join(UPLOADS_DIR, media.filename);
       fs.unlink(filePath, () => {});
       return res.json({ ok: true });

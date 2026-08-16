@@ -147,18 +147,29 @@ app.use((req, res, next) => {
   }
 
 
-  // Serve user-uploaded images from the top-level uploads/ directory.
-  // This is outside both the source tree and build output so it persists across
-  // builds and deployments on Replit's durable filesystem.
+  // Serve user-uploaded images.
+  // When REPLIT_OBJECT_STORAGE_BUCKET_ID is set (production), files are streamed
+  // from the Object Storage bucket so they survive container restarts and are
+  // visible on all production replicas. Without the bucket env var the local
+  // uploads/ directory is used as a fallback (development).
   const uploadsDir = path.resolve(process.cwd(), "uploads");
   fs.mkdirSync(uploadsDir, { recursive: true });
   app.use(
     "/uploads",
-    (_req, res, next) => {
-      // Defense-in-depth: prevent browsers from MIME-sniffing the response
-      // type. Combined with magic-byte verification on upload, this closes the
-      // stored-XSS path even if a file slips through with a wrong extension.
+    async (req: Request, res: Response, next: NextFunction) => {
       res.setHeader("X-Content-Type-Options", "nosniff");
+
+      // Try Object Storage first when a bucket is configured.
+      if (process.env.REPLIT_OBJECT_STORAGE_BUCKET_ID) {
+        const filename = path.basename(req.path);
+        if (filename && filename !== ".") {
+          const { serveFromObjectStorage } = await import("./objectStorage");
+          const served = await serveFromObjectStorage(filename, res);
+          if (served) return;
+        }
+      }
+
+      // Fall back to local disk (dev, or production before bucket was provisioned).
       next();
     },
     express.static(uploadsDir),
