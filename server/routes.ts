@@ -187,16 +187,32 @@ export async function registerRoutes(
    * Converts a CMS content block's payload into a GalleryBlock suitable for
    * the existing ProjectGallerySection component.
    */
+  /** Returns true when src points to a known video file extension. */
+  function isVideoSrc(src: string): boolean {
+    return /\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(src);
+  }
+
   function blockToGalleryBlock(
     type: string,
     payload: unknown
   ): GalleryBlock | null {
     const p = payload as Record<string, unknown>;
     if (type === "full-image") {
+      const src = String(p.src ?? "");
+      // When the editor drops a video file into a full-image slot, treat it as
+      // a video block so it renders via VideoRow rather than a broken <img>.
+      if (isVideoSrc(src)) {
+        return {
+          type: "video",
+          src,
+          ...(p.caption ? { caption: String(p.caption) } : {}),
+          ...(p.captionVisible !== undefined ? { captionVisible: Boolean(p.captionVisible) } : {}),
+        };
+      }
       return {
         type: "full",
         image: {
-          src: String(p.src ?? ""),
+          src,
           alt: String(p.alt ?? ""),
           ...(p.objectPosition ? { objectPosition: String(p.objectPosition) } : {}),
           ...(p.zoom !== undefined ? { zoom: Number(p.zoom) } : {}),

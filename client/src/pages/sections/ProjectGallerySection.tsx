@@ -2,6 +2,10 @@ import { useState } from "react";
 import { GalleryBlock, ProjectImageAsset } from "@/types/project";
 import { ContainerLayout } from "@/components/ContainerLayout";
 
+/** Returns true when src points to a known video file extension. */
+const isVideoSrc = (src: string): boolean =>
+  /\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(src);
+
 interface ProjectGallerySectionProps {
   blocks: GalleryBlock[];
 }
@@ -25,6 +29,25 @@ const GalleryImage = ({
   const [failed, setFailed] = useState(false);
   const zoom = image.zoom ?? 1;
   const origin = image.objectPosition ?? "center center";
+
+  // Safety net: if a video file somehow reaches GalleryImage (e.g. stale cached
+  // data that bypassed the server adapter fix), render it as <video> instead of
+  // letting it hit the broken-image fallback that prints the raw URL as text.
+  if (isVideoSrc(image.src)) {
+    return (
+      <div className={`overflow-hidden rounded-[4px] ${className}`}>
+        <video
+          src={image.src}
+          controls
+          playsInline
+          className="h-full w-full object-cover"
+          style={{ display: "block" }}
+        >
+          Your browser does not support HTML5 video.
+        </video>
+      </div>
+    );
+  }
 
   return (
     <div className={`overflow-hidden rounded-[4px] ${className}`}>
@@ -66,20 +89,33 @@ const GalleryImage = ({
   );
 };
 
-/** Full-width gallery row — single image, 560px tall on desktop. */
-const FullRow = ({ image }: { image: ProjectImageAsset }): JSX.Element => (
-  <div className="flex flex-col gap-2 w-full">
-    <GalleryImage image={image} className="h-[280px] w-full sm:h-[400px] lg:h-[560px]" />
-    {image.captionVisible && image.caption && (
-      <p
-        className="text-xs text-black leading-snug"
-        style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
-      >
-        {image.caption}
-      </p>
-    )}
-  </div>
-);
+/** Full-width gallery row — single image (or video), 560px tall on desktop. */
+const FullRow = ({ image }: { image: ProjectImageAsset }): JSX.Element => {
+  // When a video file lands in a full-image block, skip GalleryImage entirely
+  // and render a native <video> at the same height as an image row.
+  if (isVideoSrc(image.src)) {
+    return (
+      <VideoRow
+        src={image.src}
+        caption={image.caption}
+        captionVisible={image.captionVisible}
+      />
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2 w-full">
+      <GalleryImage image={image} className="h-[280px] w-full sm:h-[400px] lg:h-[560px]" />
+      {image.captionVisible && image.caption && (
+        <p
+          className="text-xs text-black leading-snug"
+          style={{ fontFamily: "'Geist', 'Inter', Helvetica, sans-serif" }}
+        >
+          {image.caption}
+        </p>
+      )}
+    </div>
+  );
+};
 
 /**
  * Two-column gallery row.
