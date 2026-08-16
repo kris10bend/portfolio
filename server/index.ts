@@ -180,6 +180,53 @@ app.use((req, res, next) => {
   }
 
 
+  // ── Migration: replace oversized GIFs with converted MP4 files ─────────────
+  // Two GIFs were 36 MB and 75 MB — too large for browsers to render.
+  // They were converted to MP4 (1.6 MB and 3.5 MB). This migration updates DB
+  // references in both cms_projects and cms_content_blocks so all environments
+  // (dev and production) converge without manual SQL.
+  try {
+    const { db } = await import("./db");
+    const { sql } = await import("drizzle-orm");
+
+    const already = await db.execute(
+      sql`SELECT 1 FROM migrations_log WHERE name = 'gif_to_mp4_v1' LIMIT 1`
+    );
+
+    if (already.rows.length === 0) {
+      // Vibe Camp featured image: 36 MB GIF → 1.6 MB MP4
+      await db.execute(sql`
+        UPDATE cms_projects
+        SET featured_image_url = '/uploads/b3b5f8a3-2f00-40b7-8bc0-9c309c3ec778.mp4'
+        WHERE slug = 'vibe-camp'
+          AND featured_image_url = '/uploads/8ce62caf-9323-4459-b6a1-9c055e7106db.gif'
+      `);
+
+      // Collective Intelligence 2 gallery split-block: 75 MB GIF → 3.5 MB MP4
+      await db.execute(sql`
+        UPDATE cms_content_blocks
+        SET payload = replace(
+          replace(
+            payload::text,
+            'c2519b33-af26-4dc9-a0a2-071045df8c26.gif',
+            '26f9e478-8d12-42f1-8110-572783db347f.mp4'
+          ),
+          '"mediaType":"image"}',
+          '"mediaType":"video"}'
+        )::json
+        WHERE payload::text LIKE '%c2519b33-af26-4dc9-a0a2-071045df8c26.gif%'
+      `);
+
+      await db.execute(
+        sql`INSERT INTO migrations_log (name) VALUES ('gif_to_mp4_v1') ON CONFLICT DO NOTHING`
+      );
+
+      console.log("gif_to_mp4_v1 migration completed.");
+    }
+  } catch (err) {
+    console.warn("gif_to_mp4_v1 migration failed (non-fatal):", err);
+  }
+
   // Serve user-uploaded images.
   // When REPLIT_OBJECT_STORAGE_BUCKET_ID is set (production), files are streamed
   // from the Object Storage bucket so they survive container restarts and are
