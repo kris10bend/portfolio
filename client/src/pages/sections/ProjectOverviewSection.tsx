@@ -66,7 +66,7 @@ export const ProjectOverviewSection = ({
       {/* Divider */}
       <div className="w-full border-t border-white/20" />
       {/* Metadata grid */}
-      <div className="grid w-full grid-cols-2 gap-y-8 sm:grid-cols-4 sm:gap-y-0">
+      <div className="grid w-full grid-cols-2 gap-x-10 gap-y-8 sm:grid-cols-4 sm:gap-x-12 sm:gap-y-0">
         {metaFields.map(({ label, value }) => (
           <div key={label} className="flex flex-col gap-2">
             <p
