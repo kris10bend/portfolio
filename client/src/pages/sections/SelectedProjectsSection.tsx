@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -58,7 +58,11 @@ function slotSizes(index: number): { imageHeight: ImageHeight; titleSize: TitleS
 
 // ─── Password form for confidential cards ─────────────────────────────────────
 
-function CardPasswordForm({ slug }: { slug: string }) {
+/**
+ * variant="overlay"  — white text/inputs on blue background (inside the image overlay)
+ * variant="inline"   — dark text/inputs on light background (below the card title)
+ */
+function CardPasswordForm({ slug, variant = "overlay" }: { slug: string; variant?: "overlay" | "inline" }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -91,11 +95,26 @@ function CardPasswordForm({ slug }: { slug: string }) {
     }
   }
 
+  const inputClass =
+    variant === "inline"
+      ? "flex-1 min-w-0 rounded px-2 py-1 text-[12px] bg-gray-100 border border-gray-300 text-gray-900 placeholder-gray-400 outline-none focus:border-[#002fa7] focus:bg-white transition"
+      : "flex-1 min-w-0 rounded px-2 py-1 text-[12px] bg-white/20 border border-white/40 text-white placeholder-white/60 outline-none focus:border-white/80 focus:bg-white/30 transition";
+
+  const buttonClass =
+    variant === "inline"
+      ? "shrink-0 rounded px-2 py-1 text-[12px] font-medium bg-[#002fa7] text-white hover:bg-[#002fa7]/90 disabled:opacity-50 transition"
+      : "shrink-0 rounded px-2 py-1 text-[12px] font-medium bg-white text-[#002fa7] hover:bg-white/90 disabled:opacity-50 transition";
+
+  const errorClass =
+    variant === "inline"
+      ? "text-[11px] text-red-600 leading-tight"
+      : "text-[11px] text-white/80 leading-tight";
+
   return (
     <form
       onSubmit={handleSubmit}
       onClick={(e) => e.stopPropagation()}
-      className="mt-3 flex flex-col gap-2 w-full max-w-[220px]"
+      className={`flex flex-col gap-2 w-full max-w-[220px] ${variant === "inline" ? "mt-3" : "mt-3"}`}
     >
       <div className="flex gap-1">
         <input
@@ -105,21 +124,21 @@ function CardPasswordForm({ slug }: { slug: string }) {
           onChange={(e) => { setPassword(e.target.value); setError(null); }}
           placeholder="Password"
           autoComplete="off"
-          className="flex-1 min-w-0 rounded px-2 py-1 text-[12px] bg-white/20 border border-white/40 text-white placeholder-white/60 outline-none focus:border-white/80 focus:bg-white/30 transition"
+          className={inputClass}
           style={{ fontFamily: "'Geist', Helvetica" }}
           disabled={submitting}
         />
         <button
           type="submit"
           disabled={!password || submitting}
-          className="shrink-0 rounded px-2 py-1 text-[12px] font-medium bg-white text-[#002fa7] hover:bg-white/90 disabled:opacity-50 transition"
+          className={buttonClass}
           style={{ fontFamily: "'Geist', Helvetica" }}
         >
           {submitting ? "…" : "Enter"}
         </button>
       </div>
       {error && (
-        <p className="text-[11px] text-white/80 leading-tight" style={{ fontFamily: "'Geist', Helvetica" }}>
+        <p className={errorClass} style={{ fontFamily: "'Geist', Helvetica" }}>
           {error}
         </p>
       )}
@@ -134,11 +153,13 @@ const ProjectCardContent = ({
   imageHeight,
   titleSize,
   cardOverlay = null,
+  overlayVisible = false,
 }: {
   card: ProjectCard;
   imageHeight: ImageHeight;
   titleSize: TitleSize;
   cardOverlay?: 'in_progress' | 'confidential' | null;
+  overlayVisible?: boolean;
 }): JSX.Element => {
   const isLarge = imageHeight === "large";
 
@@ -157,6 +178,10 @@ const ProjectCardContent = ({
 
   const isConfidentialWithPassword =
     cardOverlay === 'confidential' && card.isPasswordProtected === true;
+
+  // Extra class applied when the touch-toggle is active, so the overlay is
+  // visible on devices that don't support CSS :hover.
+  const touchVisibleClass = overlayVisible ? "opacity-100" : "";
 
   return (
     <CardContent className="space-y-6 p-0">
@@ -180,25 +205,24 @@ const ProjectCardContent = ({
           }}
         />
         {cardOverlay === 'in_progress' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+          <div className={`absolute inset-0 flex items-center justify-center bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100 ${touchVisibleClass}`}>
             <p className="max-w-[260px] text-center text-[13px] font-normal leading-[1.6] text-white [font-family:'Geist',Helvetica] tracking-[0.01em]">
               Case study in progress — reach out for information.
             </p>
           </div>
         )}
         {cardOverlay === 'confidential' && !isConfidentialWithPassword && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+          <div className={`absolute inset-0 flex items-center justify-center bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100 ${touchVisibleClass}`}>
             <p className="max-w-[260px] text-center text-[13px] font-normal leading-[1.6] text-white [font-family:'Geist',Helvetica] tracking-[0.01em]">
               Confidential project — reach out for information.
             </p>
           </div>
         )}
         {isConfidentialWithPassword && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100 px-4">
-            <p className="max-w-[260px] text-center text-[13px] font-normal leading-[1.6] text-white [font-family:'Geist',Helvetica] tracking-[0.01em] mb-1">
+          <div className={`absolute inset-0 flex items-center justify-center bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100 ${touchVisibleClass}`}>
+            <p className="max-w-[260px] text-center text-[13px] font-normal leading-[1.6] text-white [font-family:'Geist',Helvetica] tracking-[0.01em]">
               Confidential project
             </p>
-            <CardPasswordForm slug={card.slug} />
           </div>
         )}
       </div>
@@ -215,6 +239,9 @@ const ProjectCardContent = ({
         <p className="[font-family:'Geist',Helvetica] text-sm font-normal leading-[21px] tracking-[0] text-gray-700">
           {card.excerpt}
         </p>
+        {isConfidentialWithPassword && (
+          <CardPasswordForm slug={card.slug} variant="inline" />
+        )}
       </div>
     </CardContent>
   );
@@ -232,6 +259,20 @@ const ProjectCard = ({
   cardOverlay?: 'in_progress' | 'confidential' | null;
 }): JSX.Element => {
   const { imageHeight, titleSize } = slotSizes(index);
+  const [overlayVisible, setOverlayVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Dismiss the touch-toggled overlay when the user taps outside the card.
+  useEffect(() => {
+    if (!overlayVisible) return;
+    function onTouchOutside(e: TouchEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOverlayVisible(false);
+      }
+    }
+    document.addEventListener("touchstart", onTouchOutside, { passive: true });
+    return () => document.removeEventListener("touchstart", onTouchOutside);
+  }, [overlayVisible]);
 
   const inner = (
     <Card className={`w-full border-0 bg-transparent p-0 shadow-none ${className}`}>
@@ -240,13 +281,18 @@ const ProjectCard = ({
         imageHeight={imageHeight}
         titleSize={titleSize}
         cardOverlay={cardOverlay}
+        overlayVisible={overlayVisible}
       />
     </Card>
   );
 
   if (cardOverlay !== null) {
     return (
-      <div className="cursor-default">
+      <div
+        ref={containerRef}
+        className="cursor-default"
+        onClick={() => setOverlayVisible((v) => !v)}
+      >
         {inner}
       </div>
     );
