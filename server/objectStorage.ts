@@ -280,6 +280,15 @@ export async function serveObjectWithRanges(
       res.setHeader("Content-Range", `bytes ${range.start}-${range.end}/${size}`);
       res.setHeader("Content-Length", String(range.end - range.start + 1));
       streamOptions = range;
+      // When the parsed range covers the entire file (bytes=0- on a file where
+      // end === size - 1), skip byte-range options so downloadAsStream performs
+      // a normal full-file read instead of a GCS byte-range read.  Large
+      // byte-range reads that span the whole file intermittently stall or error
+      // in GCS, causing HTTP 500.  The 206 status, Content-Range, and
+      // Content-Length headers are still sent so browsers know seeking works.
+      if (range.start === 0 && range.end === size - 1) {
+        streamOptions = undefined;
+      }
     } else {
       res.setHeader("Content-Length", String(size));
     }

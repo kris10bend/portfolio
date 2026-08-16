@@ -136,7 +136,11 @@ test("open-ended Range: bytes=0- → 206 with full content", async () => {
   await serveObjectWithRanges(client, "vid.mp4", makeReq("bytes=0-"), res, FILE_SIZE);
   assert.equal(res.statusCode, 206);
   assert.equal(res.getHeader("content-range"), `bytes 0-${FILE_SIZE - 1}/${FILE_SIZE}`);
+  assert.equal(res.getHeader("content-length"), String(FILE_SIZE));
   assert.equal(res.body().length, FILE_SIZE);
+  // Full-file range must NOT pass byte-range options to downloadAsStream to
+  // avoid GCS intermittent errors on large files.
+  assert.equal(client.lastOptions, undefined);
 });
 
 test("end-of-file suffix Range: bytes=-100 → 206 with last 100 bytes", async () => {
