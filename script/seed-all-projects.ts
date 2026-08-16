@@ -358,40 +358,14 @@ const allProjects: Array<{
       showOnHomepage: true,
     },
     blocks: [
-      splitBlock(
-        0,
-        "/figmaAssets/project-collective-intelligence/gallery-1a.png",
-        "Collective Intelligence gallery image 1a",
-        "/figmaAssets/project-collective-intelligence/gallery-1b.png",
-        "Collective Intelligence gallery image 1b",
-        "left"
-      ),
-      fullBlock(
-        1,
-        "/figmaAssets/project-collective-intelligence/gallery-full-1.png",
-        "Collective Intelligence gallery full image 1"
-      ),
-      splitBlock(
-        2,
-        "/figmaAssets/project-collective-intelligence/gallery-2a.png",
-        "Collective Intelligence gallery image 2a",
-        "/figmaAssets/project-collective-intelligence/gallery-2b.png",
-        "Collective Intelligence gallery image 2b",
-        "right"
-      ),
-      splitBlock(
-        3,
-        "/figmaAssets/project-collective-intelligence/gallery-3a.png",
-        "Collective Intelligence gallery image 3a",
-        "/figmaAssets/project-collective-intelligence/gallery-3b.png",
-        "Collective Intelligence gallery image 3b",
-        "left"
-      ),
-      fullBlock(
-        4,
-        "/figmaAssets/project-collective-intelligence/gallery-full-2.png",
-        "Collective Intelligence gallery full image 2"
-      ),
+      // Empty blocks — images to be assigned via the admin media library.
+      // The layout (split/full/split/split/full) and wide direction are
+      // preserved so the editor renders the correct slot shapes immediately.
+      splitBlock(0, "", "", "", "", "left"),
+      fullBlock(1, "", ""),
+      splitBlock(2, "", "", "", "", "right"),
+      splitBlock(3, "", "", "", "", "left"),
+      fullBlock(4, "", ""),
     ],
   },
 

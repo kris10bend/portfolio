@@ -146,6 +146,54 @@ app.use((req, res, next) => {
     console.warn("homepage_order_v1 migration failed (non-fatal):", err);
   }
 
+  // One-time migration: replace Collective Intelligence's 5 broken
+  // /figmaAssets/ content blocks with clean empty blocks so the admin editor
+  // shows unpopulated slots ready for the media library. The project's other
+  // fields (title, metadata, hero image, etc.) are untouched.
+  try {
+    const { db: db2 } = await import("./db");
+    const { sql: sql2 } = await import("drizzle-orm");
+
+    await db2.execute(sql2`
+      CREATE TABLE IF NOT EXISTS migrations_log (
+        name TEXT PRIMARY KEY,
+        ran_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    const alreadyRan = await db2.execute(
+      sql2`SELECT 1 FROM migrations_log WHERE name = 'collective_intelligence_empty_blocks_v1' LIMIT 1`
+    );
+
+    if (alreadyRan.rows.length === 0) {
+      const ciProject = await db2.execute(
+        sql2`SELECT id FROM cms_projects WHERE slug = 'collective-intelligence' LIMIT 1`
+      );
+      if (ciProject.rows.length > 0) {
+        const ciId = (ciProject.rows[0] as { id: string }).id;
+
+        await db2.execute(sql2`DELETE FROM cms_content_blocks WHERE project_id = ${ciId}`);
+
+        await db2.execute(sql2`
+          INSERT INTO cms_content_blocks (project_id, position, type, payload) VALUES
+            (${ciId}, 0, 'split-image', '{"wide":"left","left":{"src":"","alt":"","caption":"","captionVisible":false},"right":{"src":"","alt":"","caption":"","captionVisible":false}}'),
+            (${ciId}, 1, 'full-image',  '{"src":"","alt":"","caption":"","captionVisible":false}'),
+            (${ciId}, 2, 'split-image', '{"wide":"right","left":{"src":"","alt":"","caption":"","captionVisible":false},"right":{"src":"","alt":"","caption":"","captionVisible":false}}'),
+            (${ciId}, 3, 'split-image', '{"wide":"left","left":{"src":"","alt":"","caption":"","captionVisible":false},"right":{"src":"","alt":"","caption":"","captionVisible":false}}'),
+            (${ciId}, 4, 'full-image',  '{"src":"","alt":"","caption":"","captionVisible":false}')
+        `);
+      }
+
+      await db2.execute(
+        sql2`INSERT INTO migrations_log (name) VALUES ('collective_intelligence_empty_blocks_v1') ON CONFLICT DO NOTHING`
+      );
+
+      console.log("Migration collective_intelligence_empty_blocks_v1 completed.");
+    }
+  } catch (err) {
+    console.warn("collective_intelligence_empty_blocks_v1 migration failed (non-fatal):", err);
+  }
+
   // Serve user-uploaded images from the top-level uploads/ directory.
   // This is outside both the source tree and build output so it persists across
   // builds and deployments on Replit's durable filesystem.
