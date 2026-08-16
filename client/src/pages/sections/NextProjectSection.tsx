@@ -52,8 +52,10 @@ export const NextProjectSection = ({
         <div className="group relative flex h-[220px] w-full cursor-pointer items-end overflow-hidden sm:h-[280px] lg:h-[320px]">
           {/* Background image — falls back to a grey slot if the file is missing */}
           <NextProjectImage image={nextProject.image} />
-          {/* Dark overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+          {/* Flat overlay — dims the whole image so it reads as distinct from in-page content */}
+          <div className="absolute inset-0 bg-black/40" />
+          {/* Gradient overlay — reinforces legibility of text at the bottom */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
 
           {/* Text */}
           <div className="relative w-full px-6 pb-8 sm:px-10 lg:px-20 lg:pb-12">
