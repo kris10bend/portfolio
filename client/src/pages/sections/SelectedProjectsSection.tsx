@@ -199,20 +199,33 @@ const ProjectCardContent = ({
           isLarge ? "h-[320px] lg:h-[400px]" : "h-[240px] lg:h-[300px]"
         }`}
       >
-        <img
-          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
-          alt={card.featuredImageAlt || card.heroImageAlt}
-          src={card.featuredImageUrl || card.heroImageSrc}
-          style={{
-            objectPosition,
-            ...(cropZoom !== 1
-              ? {
-                  transform: `scale(${cropZoom})`,
-                  transformOrigin: objectPosition,
-                }
-              : {}),
-          }}
-        />
+        {/\.(mp4|webm|mov)(\?.*)?$/i.test(card.featuredImageUrl || card.heroImageSrc) ? (
+          <video
+            className="h-full w-full object-cover"
+            style={{ objectPosition }}
+            autoPlay
+            loop
+            muted
+            playsInline
+          >
+            <source src={card.featuredImageUrl || card.heroImageSrc} />
+          </video>
+        ) : (
+          <img
+            className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+            alt={card.featuredImageAlt || card.heroImageAlt}
+            src={card.featuredImageUrl || card.heroImageSrc}
+            style={{
+              objectPosition,
+              ...(cropZoom !== 1
+                ? {
+                    transform: `scale(${cropZoom})`,
+                    transformOrigin: objectPosition,
+                  }
+                : {}),
+            }}
+          />
+        )}
         {cardOverlay === 'in_progress' && (
           <div className={`absolute inset-0 flex items-center justify-center bg-[#002fa7]/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100 ${touchVisibleClass}`}>
             <p className="max-w-[260px] text-center text-[13px] font-normal leading-[1.6] text-white [font-family:'Geist',Helvetica] tracking-[0.01em]">
