@@ -24,7 +24,7 @@ export const ProjectNarrativeSection = ({
         className="mb-8 shrink-0 font-normal leading-[1.1] text-[#0d0d1a] lg:mb-0 lg:w-[480px]"
         style={{
           fontFamily: "'Inter', Helvetica, sans-serif",
-          fontSize: "clamp(24px, 3.5vw, 40px)",
+          fontSize: "clamp(20px, 2.6vw, 32px)",
         }}
       >
         {quote}
