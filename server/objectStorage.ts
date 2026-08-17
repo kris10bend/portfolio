@@ -111,6 +111,105 @@ export function parseRange(
 }
 
 /**
+ * Replit deployments sit behind a proxy that rejects any HTTP response body
+ * larger than 32 MiB with an edge-level 500 (confirmed empirically against
+ * production: a 33,000,001-byte 206 succeeds, a 34,000,001-byte 206 fails,
+ * cutoff at exactly 32 MiB). Browsers open videos with `Range: bytes=0-`,
+ * which would otherwise produce a full-file 206 body — for a 45 MB video that
+ * response is killed by the proxy and playback freezes at 0:00.
+ *
+ * To stay safely under the limit, every range response is capped at this many
+ * bytes. Returning fewer bytes than requested is valid HTTP: the 206
+ * Content-Range header tells the browser exactly what it got, and it issues
+ * follow-up range requests for the rest.
+ */
+export const MAX_RANGE_SPAN_BYTES = 16 * 1024 * 1024;
+
+/** The deployment proxy's hard response-body limit (empirically confirmed). */
+export const PROXY_RESPONSE_LIMIT_BYTES = 32 * 1024 * 1024;
+
+/**
+ * Abort threshold for unknown-size full streams: destroy the stream a couple
+ * of MiB before the proxy limit so in-flight chunks can't push the total
+ * body past 32 MiB.
+ */
+const UNKNOWN_SIZE_ABORT_BYTES = PROXY_RESPONSE_LIMIT_BYTES - 2 * 1024 * 1024;
+
+/** True when the header is a single simple `bytes=start-[end]` / `bytes=-N` range. */
+function isSimpleRangeHeader(header: unknown): boolean {
+  if (typeof header !== "string") return false;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  return !!m && !(m[1] === "" && m[2] === "");
+}
+
+/**
+ * Express middleware guarding the /uploads route (both the Object Storage
+ * path and the express.static local-disk fallback) against responses larger
+ * than the deployment proxy's 32 MiB limit:
+ *
+ * 1. Simple range headers are clamped to MAX_RANGE_SPAN_BYTES.
+ * 2. Absent, malformed, or multi-part range headers on a local file bigger
+ *    than the proxy limit are replaced with a capped `bytes=0-…` range
+ *    (RFC 9110 permits a server to ignore the Range header), so
+ *    express.static serves a 206 with the first 16 MiB instead of an
+ *    unbounded full-file 200 that the proxy would reject with a 500.
+ */
+export function uploadsRangeGuard(uploadsDir: string) {
+  return (req: Request, _res: Response, next: () => void) => {
+    const raw = req.headers.range;
+    const clamped = clampRangeHeader(typeof raw === "string" ? raw : undefined);
+    if (typeof raw === "string" && clamped !== raw) {
+      req.headers.range = clamped;
+      next();
+      return;
+    }
+    if (!isSimpleRangeHeader(raw)) {
+      // No usable Range header — cap large local files.
+      try {
+        const st = fs.statSync(path.join(uploadsDir, path.basename(req.path)));
+        if (st.isFile() && st.size > PROXY_RESPONSE_LIMIT_BYTES) {
+          req.headers.range = `bytes=0-${MAX_RANGE_SPAN_BYTES - 1}`;
+        }
+      } catch {
+        // Not on local disk; the Object Storage path applies its own cap.
+      }
+    }
+    next();
+  };
+}
+
+/**
+ * Rewrite a Range header so its span never exceeds MAX_RANGE_SPAN_BYTES.
+ * Returns the original header untouched when it is absent, malformed, or
+ * already small enough. Used both by the Object Storage path and by the
+ * express.static local-disk fallback (which would otherwise serve a
+ * full-file body for `bytes=0-`).
+ */
+export function clampRangeHeader(header: string | undefined): string | undefined {
+  if (!header) return header;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!m) return header;
+  const [, rawStart, rawEnd] = m;
+  if (rawStart === "") {
+    // Suffix range: last N bytes.
+    const suffix = parseInt(rawEnd, 10);
+    if (Number.isFinite(suffix) && suffix > MAX_RANGE_SPAN_BYTES) {
+      return `bytes=-${MAX_RANGE_SPAN_BYTES}`;
+    }
+    return header;
+  }
+  const start = parseInt(rawStart, 10);
+  if (!Number.isFinite(start)) return header;
+  const cappedEnd = start + MAX_RANGE_SPAN_BYTES - 1;
+  if (rawEnd === "") return `bytes=${start}-${cappedEnd}`;
+  const end = parseInt(rawEnd, 10);
+  if (Number.isFinite(end) && end - start + 1 > MAX_RANGE_SPAN_BYTES) {
+    return `bytes=${start}-${cappedEnd}`;
+  }
+  return header;
+}
+
+/**
  * Resolve the byte size of an uploaded file so range requests can be served
  * with correct Content-Range headers.
  *
@@ -268,7 +367,19 @@ export async function serveObjectWithRanges(
   let streamOptions: { start: number; end: number } | undefined;
 
   if (size !== null && size > 0) {
-    const range = parseRange(req.headers.range as string | undefined, size);
+    // Clamp oversized/open-ended ranges so the response body never exceeds
+    // the deployment proxy's 32 MiB limit (see MAX_RANGE_SPAN_BYTES).
+    let range = parseRange(
+      clampRangeHeader(req.headers.range as string | undefined),
+      size,
+    );
+    // No Range header on a file bigger than the proxy's response limit: a
+    // full 200 body would be rejected with an edge-level 500. Serve the first
+    // MAX_RANGE_SPAN_BYTES as a 206 instead — Accept-Ranges tells clients how
+    // to fetch the rest.
+    if (range === null && size > PROXY_RESPONSE_LIMIT_BYTES) {
+      range = { start: 0, end: MAX_RANGE_SPAN_BYTES - 1 };
+    }
     if (range === "unsatisfiable") {
       res.status(416);
       res.setHeader("Content-Range", `bytes */${size}`);
@@ -302,6 +413,23 @@ export async function serveObjectWithRanges(
       `uploads/${filename}`,
       streamOptions as any,
     );
+    // Unknown size means we could be streaming an unbounded full-file body.
+    // The proxy hard-fails any response over 32 MiB, so abort the stream
+    // before crossing the limit — a truncated/aborted response is strictly
+    // better than the guaranteed edge-level 500.
+    if (streamOptions === undefined && (size === null || size <= 0)) {
+      let sent = 0;
+      stream.on("data", (chunk: Buffer) => {
+        sent += chunk.length;
+        if (sent > UNKNOWN_SIZE_ABORT_BYTES) {
+          (stream as any).destroy?.(
+            new Error(
+              `unknown-size stream for ${filename} exceeded safe proxy response limit; aborting`,
+            ),
+          );
+        }
+      });
+    }
     stream.on("error", (err) => {
       console.error(`[objectStorage] Stream error for ${filename}:`, err);
       if (!res.headersSent) {

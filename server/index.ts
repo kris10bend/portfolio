@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { setupAuth } from "./auth";
+import { uploadsRangeGuard } from "./objectStorage";
 import path from "path";
 import fs from "fs";
 
@@ -236,6 +237,11 @@ app.use((req, res, next) => {
   fs.mkdirSync(uploadsDir, { recursive: true });
   app.use(
     "/uploads",
+    // The deployment proxy rejects response bodies larger than 32 MiB with
+    // an edge-level 500 — this froze videos at 0:00 on the published site.
+    // The guard clamps/normalizes Range headers so neither serving path can
+    // produce an oversized response. See uploadsRangeGuard in objectStorage.ts.
+    uploadsRangeGuard(uploadsDir),
     async (req: Request, res: Response, next: NextFunction) => {
       res.setHeader("X-Content-Type-Options", "nosniff");
 

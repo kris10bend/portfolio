@@ -11,9 +11,31 @@ import { Readable } from "stream";
 import { EventEmitter } from "events";
 import {
   parseRange,
+  clampRangeHeader,
+  MAX_RANGE_SPAN_BYTES,
   serveObjectWithRanges,
   type ObjectStorageClientLike,
 } from "../objectStorage";
+
+// ─── clampRangeHeader unit tests ─────────────────────────────────────────────
+
+test("clampRangeHeader caps spans at MAX_RANGE_SPAN_BYTES (32 MiB proxy limit)", () => {
+  const CAP = MAX_RANGE_SPAN_BYTES;
+  // Absent / malformed / small headers pass through untouched.
+  assert.equal(clampRangeHeader(undefined), undefined);
+  assert.equal(clampRangeHeader("garbage"), "garbage");
+  assert.equal(clampRangeHeader("bytes=0-1023"), "bytes=0-1023");
+  assert.equal(clampRangeHeader("bytes=-500"), "bytes=-500");
+  assert.equal(clampRangeHeader(`bytes=0-${CAP - 1}`), `bytes=0-${CAP - 1}`);
+  // Open-ended ranges are capped — this is the browser's first video probe.
+  assert.equal(clampRangeHeader("bytes=0-"), `bytes=0-${CAP - 1}`);
+  assert.equal(clampRangeHeader("bytes=100000-"), `bytes=100000-${100000 + CAP - 1}`);
+  // Explicit oversized ranges are capped.
+  assert.equal(clampRangeHeader(`bytes=0-${CAP}`), `bytes=0-${CAP - 1}`);
+  assert.equal(clampRangeHeader("bytes=0-99999999999"), `bytes=0-${CAP - 1}`);
+  // Oversized suffix ranges are capped.
+  assert.equal(clampRangeHeader(`bytes=-${CAP + 1}`), `bytes=-${CAP}`);
+});
 
 // ─── parseRange unit tests ───────────────────────────────────────────────────
 
@@ -178,6 +200,58 @@ test("missing object → returns false without touching the response", async () 
   const served = await serveObjectWithRanges(client, "nope.mp4", makeReq(), res, FILE_SIZE);
   assert.equal(served, false);
   assert.equal(res.body().length, 0);
+});
+
+test("no Range header on a file larger than the proxy limit → capped 206, not full 200", async () => {
+  const BIG = 40 * 1024 * 1024; // > 32 MiB proxy limit
+  const client: any = {
+    async exists() { return { ok: true, value: true }; },
+    lastOptions: undefined as unknown,
+    downloadAsStream(_name: string, options?: unknown) {
+      client.lastOptions = options;
+      const opts = (options ?? {}) as { start?: number; end?: number };
+      const start = opts.start ?? 0;
+      const end = opts.end ?? BIG - 1;
+      return Readable.from([Buffer.alloc(end - start + 1)]);
+    },
+    getBucket: async () => ({
+      file: (_n: string) => ({ getMetadata: async () => [{ size: String(BIG) }] }),
+    }),
+  };
+  const res = makeFakeRes();
+  await serveObjectWithRanges(client, "big-noheader-test.mp4", makeReq(), res, BIG);
+  assert.equal(res.statusCode, 206);
+  assert.equal(res.getHeader("content-range"), `bytes 0-${MAX_RANGE_SPAN_BYTES - 1}/${BIG}`);
+  assert.equal(res.getHeader("content-length"), String(MAX_RANGE_SPAN_BYTES));
+  assert.equal(res.body().length, MAX_RANGE_SPAN_BYTES);
+  assert.deepEqual(client.lastOptions, { start: 0, end: MAX_RANGE_SPAN_BYTES - 1 });
+});
+
+test("unknown size + huge object → stream aborted before the 32 MiB proxy limit", async () => {
+  // No metadata, no fallback size: server streams a full 200 of unknown
+  // length. The guard must destroy the stream before the body crosses the
+  // proxy's 32 MiB response limit.
+  const CHUNK = 1024 * 1024;
+  const TOTAL_CHUNKS = 40; // 40 MiB source
+  const client: any = {
+    async exists() { return { ok: true, value: true }; },
+    downloadAsStream(_name: string, _options?: unknown) {
+      let i = 0;
+      return new Readable({
+        read() {
+          if (i++ < TOTAL_CHUNKS) this.push(Buffer.alloc(CHUNK));
+          else this.push(null);
+        },
+      });
+    },
+  };
+  const res = makeFakeRes();
+  const served = await serveObjectWithRanges(client, "huge-unknown.mp4", makeReq(), res, null);
+  assert.equal(served, true);
+  assert.ok(
+    res.body().length <= 32 * 1024 * 1024,
+    `body ${res.body().length} exceeds proxy limit`,
+  );
 });
 
 // ─── Authoritative bucket metadata size tests ────────────────────────────────
