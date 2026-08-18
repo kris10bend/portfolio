@@ -228,6 +228,148 @@ app.use((req, res, next) => {
     console.warn("gif_to_mp4_v1 migration failed (non-fatal):", err);
   }
 
+  // ── Object Storage health check ─────────────────────────────────────────────
+  // Emit a prominent startup warning when running in production without an
+  // Object Storage bucket. In this state new uploads go to the container disk
+  // only and will be lost the next time the container restarts or is redeployed.
+  // (Existing files committed to git are safe because they're in the build
+  // image, but any post-deploy upload is ephemeral.)
+  if (process.env.NODE_ENV === "production" && !process.env.REPLIT_OBJECT_STORAGE_BUCKET_ID) {
+    console.error(
+      "[objectStorage] CRITICAL: REPLIT_OBJECT_STORAGE_BUCKET_ID is not set. " +
+      "Uploads are served from the container disk via express.static (etag/last-modified " +
+      "headers visible in curl), not from the bucket. Any file uploaded after the last build " +
+      "will be lost on the next container restart or redeploy. " +
+      "Provision an Object Storage bucket in the Replit workspace to fix this."
+    );
+  }
+
+  // ── Migration: correct stale cms_media sizes from on-disk truth ─────────────
+  // After a faststart re-mux (or any post-upload processing) the on-disk file
+  // size can differ slightly from the size recorded in cms_media at upload time.
+  // Stale sizes cause incorrect Content-Range headers — browsers see the wrong
+  // total length and may fail to seek or play past the stale boundary.
+  // This migration corrects every cms_media row where the local file exists but
+  // its size disagrees with the recorded value.
+  //
+  // Example: 961bd263-7fc8-4df6-800c-68c2281488ee.mp4
+  //   cms_media.size = 45,661,744 (recorded at upload)
+  //   on-disk size   = 45,659,277 (after a subsequent re-mux)
+  try {
+    const { db } = await import("./db");
+    const { sql } = await import("drizzle-orm");
+
+    const already = await db.execute(
+      sql`SELECT 1 FROM migrations_log WHERE name = 'cms_media_size_correction_v1' LIMIT 1`
+    );
+
+    if (already.rows.length === 0) {
+      const localUploadsDir = path.resolve(process.cwd(), "uploads");
+      const { rows: mediaRows } = await (await import("./db")).pool.query<{
+        id: string;
+        filename: string;
+        size: number;
+      }>("SELECT id, filename, size FROM cms_media");
+
+      let corrected = 0;
+      for (const m of mediaRows) {
+        try {
+          const stat = fs.statSync(path.join(localUploadsDir, m.filename));
+          if (stat.isFile() && stat.size > 0 && stat.size !== m.size) {
+            await (await import("./db")).pool.query(
+              "UPDATE cms_media SET size = $1 WHERE id = $2",
+              [stat.size, m.id]
+            );
+            console.log(
+              `cms_media_size_correction_v1: ${m.filename} ${m.size} → ${stat.size} bytes`
+            );
+            corrected++;
+          }
+        } catch {
+          // File not on local disk — skip; bucket metadata handles it at serve time.
+        }
+      }
+
+      await db.execute(
+        sql`INSERT INTO migrations_log (name) VALUES ('cms_media_size_correction_v1') ON CONFLICT DO NOTHING`
+      );
+
+      console.log(`cms_media_size_correction_v1 completed (${corrected} correction(s)).`);
+    }
+  } catch (err) {
+    console.warn("cms_media_size_correction_v1 migration failed (non-fatal):", err);
+  }
+
+  // ── Migration: sync local uploads/ to Object Storage (one-time catch-up) ────
+  // When REPLIT_OBJECT_STORAGE_BUCKET_ID becomes available for the first time,
+  // upload every file in uploads/ to the bucket so that pre-provisioning uploads
+  // survive future container restarts. Idempotent via migrations_log.
+  //
+  // After this runs, new uploads go straight to the bucket (routes.ts), so the
+  // local disk copy is only a dev fallback.
+  try {
+    if (process.env.REPLIT_OBJECT_STORAGE_BUCKET_ID) {
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+
+      const already = await db.execute(
+        sql`SELECT 1 FROM migrations_log WHERE name = 'local_to_bucket_sync_v1' LIMIT 1`
+      );
+
+      if (already.rows.length === 0) {
+        const { uploadToObjectStorage } = await import("./objectStorage");
+        const localUploadsDir = path.resolve(process.cwd(), "uploads");
+        let uploaded = 0;
+        let failed = 0;
+
+        const files = fs.readdirSync(localUploadsDir).filter(
+          (f) => !f.startsWith("_tmp_")
+        );
+
+        for (const file of files) {
+          try {
+            const filePath = path.join(localUploadsDir, file);
+            const stat = fs.statSync(filePath);
+            if (!stat.isFile()) continue;
+            const buf = fs.readFileSync(filePath);
+            const ok = await uploadToObjectStorage(file, buf);
+            if (ok) {
+              uploaded++;
+            } else {
+              failed++;
+              console.error(`local_to_bucket_sync_v1: uploadToObjectStorage returned false for ${file}`);
+            }
+          } catch (fileErr) {
+            failed++;
+            console.error(`local_to_bucket_sync_v1: failed to upload ${file}:`, fileErr);
+          }
+        }
+
+        if (failed === 0) {
+          // Only mark complete when every file reached the bucket — if any
+          // upload failed (transient network error, quota, etc.) we leave the
+          // migration unrecorded so the next startup retries the whole set.
+          // Once the disk is gone after a container rotation, unsynced files
+          // are permanently lost, so partial success is not acceptable here.
+          await db.execute(
+            sql`INSERT INTO migrations_log (name) VALUES ('local_to_bucket_sync_v1') ON CONFLICT DO NOTHING`
+          );
+          console.log(
+            `local_to_bucket_sync_v1 completed: ${uploaded} file(s) uploaded to bucket.`
+          );
+        } else {
+          console.error(
+            `[objectStorage] CRITICAL: local_to_bucket_sync_v1 left ${failed} file(s) un-synced to the bucket. ` +
+            `The migration will retry on the next startup. Do NOT redeploy until it completes cleanly — ` +
+            `any file that has not reached the bucket will be permanently unavailable after a container restart.`
+          );
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("local_to_bucket_sync_v1 migration failed (non-fatal):", err);
+  }
+
   // Serve user-uploaded images.
   // When REPLIT_OBJECT_STORAGE_BUCKET_ID is set (production), files are streamed
   // from the Object Storage bucket so they survive container restarts and are
