@@ -100,18 +100,6 @@ export const ContactPage = (): JSX.Element => {
               Let's build what's next.
             </h1>
 
-            {/* Body copy */}
-            <p
-              className="text-base font-normal leading-[1.65] text-white/70"
-              style={{
-                fontFamily: "'Geist', 'Inter', Helvetica, sans-serif",
-                maxWidth: "420px",
-              }}
-            >
-              Whether you're hiring, looking for a creative partner, or simply
-              want to continue the conversation, I'd love to hear from you.
-            </p>
-
             {/* Location */}
             <div className="flex flex-col gap-3">
               <p
