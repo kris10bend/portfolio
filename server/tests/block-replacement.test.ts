@@ -84,6 +84,39 @@ after(async () => {
 });
 
 describe("PUT /api/admin/projects/:id/full — block replacement", () => {
+  test("invalid contact submissions return a validation message, not a server error", async () => {
+    const res = await fetch(`${baseUrl}/api/contact`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Visitor", email: "invalid", message: "Hello" }),
+    });
+    assert.equal(res.status, 400);
+    const body = await res.json() as { error?: string };
+    assert.equal(body.error, "A valid email address is required");
+  });
+
+  test("invalid partial project updates return a validation message", async () => {
+    const res = await fetch(`${baseUrl}/api/admin/projects/${testProjectId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Cookie: sessionCookie },
+      body: JSON.stringify({ title: 123 }),
+    });
+    assert.equal(res.status, 400);
+    const body = await res.json() as { error?: string };
+    assert.ok(body.error, "Expected a schema validation message");
+  });
+
+  test("invalid project publishing returns a validation message", async () => {
+    const res = await fetch(`${baseUrl}/api/admin/projects/${testProjectId}/publish`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: sessionCookie },
+      body: JSON.stringify({ title: "Invalid project" }),
+    });
+    assert.equal(res.status, 400);
+    const body = await res.json() as { error?: string };
+    assert.ok(body.error, "Expected a schema validation message");
+  });
+
   test("rejects a payload missing the blocks field (400)", async () => {
     const res = await fetch(`${baseUrl}/api/admin/projects/${testProjectId}/full`, {
       method: "PUT",

@@ -265,7 +265,7 @@ export async function registerRoutes(
 
     const parsed = contactSchema.safeParse(req.body);
     if (!parsed.success) {
-      const firstError = parsed.error.errors[0]?.message ?? "Invalid submission";
+      const firstError = parsed.error.issues[0]?.message ?? "Invalid submission";
       return res.status(400).json({ error: firstError });
     }
 
@@ -786,7 +786,7 @@ export async function registerRoutes(
     const id = String(req.params.id);
     const parsed = updateProjectSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid payload" });
+      return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid payload" });
     }
     try {
       const updated = await storage.updateCmsProject(id, parsed.data);
@@ -876,7 +876,7 @@ export async function registerRoutes(
   // Zod schema for a single content block as sent from the editor
   const contentBlockSchema = z.object({
     type: z.enum(["text", "full-image", "split-image", "video"]),
-    payload: z.record(z.unknown()),
+    payload: z.record(z.string(), z.unknown()),
   });
 
   const fullProjectSaveSchema = z.object({
@@ -972,7 +972,7 @@ export async function registerRoutes(
     const id = String(req.params.id);
     const parsed = fullProjectSaveSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid payload" });
+      return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid payload" });
     }
     try {
       const existing = await storage.getCmsProjectById(id);
@@ -990,7 +990,7 @@ export async function registerRoutes(
     const id = String(req.params.id);
     const parsed = fullProjectSaveSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid payload" });
+      return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid payload" });
     }
     try {
       const existing = await storage.getCmsProjectById(id);
